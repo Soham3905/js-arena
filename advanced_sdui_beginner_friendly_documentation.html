@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title></title>
+	<meta name="generator" content="LibreOffice 26.2.3.2 (Linux)"/>
+	<meta name="created" content="00:00:00"/>
+	<meta name="changed" content="00:00:00"/>
+	<style type="text/css">
+		@page { size: 8.27in 11.69in; margin: 0.79in }
+		p { margin-bottom: 0.1in; line-height: 115%; background: transparent }
+		h1 { margin-bottom: 0.08in; background: transparent; page-break-after: avoid }
+		h1.western { font-weight: bold; font-size: 18pt; font-family: "Liberation Sans", sans-serif }
+		h1.cjk { font-weight: bold; font-size: 18pt; font-family: "AR PL SungtiL GB" }
+		h1.ctl { font-weight: bold; font-family: "Noto Sans Devanagari"; font-size: 18pt }
+		h2 { margin-top: 0.14in; margin-bottom: 0.08in; background: transparent; page-break-after: avoid }
+		h2.western { font-weight: bold; font-size: 16pt; font-family: "Liberation Sans", sans-serif }
+		h2.cjk { font-weight: bold; font-size: 16pt; font-family: "AR PL SungtiL GB" }
+		h2.ctl { font-weight: bold; font-family: "Noto Sans Devanagari"; font-size: 16pt }
+		blockquote { margin-right: 0.39in; margin-left: 0.39in; background: transparent }
+		pre { font-size: 10pt; font-family: "Liberation Mono", monospace; background: transparent }
+	</style>
+</head>
+<body lang="en-US" link="#000080" vlink="#800000" dir="ltr"><h1 class="western">
+Server-Driven UI (SDUI) — Beginner to Advanced Documentation</h1>
+<h1 class="western">1. Introduction</h1>
+<h2 class="western">What is SDUI?</h2>
+<p>SDUI stands for <b>Server-Driven UI</b>.</p>
+<p>It is an architecture where:</p>
+<ul>
+	<li><p>Backend controls the UI structure</p></li>
+	<li><p>Frontend dynamically renders the UI</p></li>
+</ul>
+<p>Instead of hardcoding every screen inside frontend code, the
+backend sends UI configuration dynamically.</p>
+<p>Frontend reads that configuration and renders the UI during
+runtime.</p>
+<hr/>
+
+<h1 class="western">2. Simple Definition</h1>
+<blockquote>Backend decides WHAT to show.</blockquote>
+<blockquote>Frontend decides HOW to render it.</blockquote>
+<hr/>
+
+<h1 class="western">3. Traditional UI vs SDUI</h1>
+<h2 class="western">Traditional UI</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Frontend Code → Build App → Deploy → User Updates App</pre><p>
+Problems:</p>
+<ul>
+	<li><p>Every small UI change requires app update</p></li>
+	<li><p>Android/iOS/Web need separate logic</p></li>
+	<li><p>A/B testing becomes difficult</p></li>
+	<li><p>Personalization is limited</p></li>
+</ul>
+<hr/>
+
+<h2 class="western">SDUI</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Frontend Requests Config<br/>
+          ↓<br/>
+Backend Sends JSON/Protobuf<br/>
+          ↓<br/>
+Renderer Dynamically Creates UI</pre><p>
+Benefits:</p>
+<ul>
+	<li><p>Faster UI updates</p></li>
+	<li><p>Dynamic layouts</p></li>
+	<li><p>Better personalization</p></li>
+	<li><p>Easier experimentation</p></li>
+	<li><p>Reduced deployments</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">4. Core Idea of SDUI</h1>
+<p>In SDUI:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Backend = Brain<br/>
+Frontend = Renderer Engine</pre><p>
+Backend decides:</p>
+<ul>
+	<li><p>layout</p></li>
+	<li><p>order</p></li>
+	<li><p>themes</p></li>
+	<li><p>actions</p></li>
+	<li><p>personalization</p></li>
+</ul>
+<p>Frontend only renders the configuration.</p>
+<hr/>
+
+<h1 class="western">5. Basic SDUI Example</h1>
+<h2 class="western">Backend Response</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;hero&quot;,<br/>
+  &quot;title&quot;: &quot;Welcome to SDUI&quot;<br/>
+}</pre>
+<hr/>
+
+<h2 class="western">Frontend Renderer</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">if(component.type === &quot;hero&quot;) {<br/>
+   return &lt;Hero title={component.title} /&gt;<br/>
+}</pre><p>
+Frontend dynamically creates UI using backend data.</p>
+<hr/>
+
+<h1 class="western">6. Real Internal SDUI Flow</h1>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">User Opens App<br/>
+       ↓<br/>
+Frontend Requests Screen<br/>
+       ↓<br/>
+Backend Sends JSON/Protobuf<br/>
+       ↓<br/>
+Renderer Parses Data<br/>
+       ↓<br/>
+Registry Finds Components<br/>
+       ↓<br/>
+React Creates Elements<br/>
+       ↓<br/>
+Virtual DOM Created<br/>
+       ↓<br/>
+DOM Updated<br/>
+       ↓<br/>
+Browser Paints UI</pre><p>
+This is the real internal rendering flow.</p>
+<hr/>
+
+<h1 class="western">7. Main Parts of SDUI Architecture</h1>
+<h1 class="western">7.1 Backend Server</h1>
+<p>Responsible for:</p>
+<ul>
+	<li><p>layouts</p></li>
+	<li><p>business logic</p></li>
+	<li><p>personalization</p></li>
+	<li><p>A/B testing</p></li>
+	<li><p>actions</p></li>
+	<li><p>experiments</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">7.2 Renderer Engine</h1>
+<p>Renderer Engine is the heart of SDUI.</p>
+<p>It:</p>
+<ul>
+	<li><p>reads JSON</p></li>
+	<li><p>validates schema</p></li>
+	<li><p>maps components</p></li>
+	<li><p>renders UI dynamically</p></li>
+</ul>
+<p>Internal flow:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">JSON → Parser → Registry → Renderer → UI</pre>
+<hr/>
+
+<h1 class="western">7.3 Component Registry</h1>
+<p>Registry maps backend component types to frontend components.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">const registry = {<br/>
+   hero: HeroComponent,<br/>
+   button: ButtonComponent,<br/>
+   card: CardComponent<br/>
+}</pre><p>
+When backend sends:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;button&quot;<br/>
+}</pre><p>
+Renderer finds:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">registry[&quot;button&quot;]</pre><p>
+and renders Button component.</p>
+<hr/>
+
+<h1 class="western">7.4 Reusable Components</h1>
+<p>Reusable components:</p>
+<ul>
+	<li><p>Hero</p></li>
+	<li><p>Card</p></li>
+	<li><p>Banner</p></li>
+	<li><p>Footer</p></li>
+	<li><p>Button</p></li>
+	<li><p>Navbar</p></li>
+</ul>
+<p>Frontend already contains these components.</p>
+<p>Backend only controls when to use them.</p>
+<hr/>
+
+<h1 class="western">8. Why Different Platforms Still Need Different
+Components</h1>
+<p>You may think:</p>
+<blockquote>“If Android/iOS/Web still use different renderers,&nbsp;then
+how is SDUI solving duplication?”</blockquote>
+<p>Very important question.</p>
+<hr/>
+
+<h1 class="western">Traditional System</h1>
+<p>Android team:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">HomeScreen()</pre><p>
+Web team:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">&lt;Home /&gt;</pre><p>
+Everything is hardcoded separately.</p>
+<hr/>
+
+<h1 class="western">SDUI System</h1>
+<p>Backend sends SAME schema:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;hero&quot;,<br/>
+  &quot;title&quot;: &quot;Welcome&quot;<br/>
+}</pre><p>
+Android, iOS, and Web all receive SAME configuration.</p>
+<p>Only rendering implementation differs.</p>
+<hr/>
+
+<h1 class="western">Huge Difference</h1>
+<p>Traditional:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Every platform controls UI separately</pre><p>
+SDUI:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Backend centrally controls UI decisions<br/>
+Frontend only renders</pre><p>
+This removes huge duplication.</p>
+<hr/>
+
+<h1 class="western">9. Recursive Rendering</h1>
+<p>Very important concept.</p>
+<p>UI internally becomes a tree.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;column&quot;,<br/>
+  &quot;children&quot;: [<br/>
+    {<br/>
+      &quot;type&quot;: &quot;hero&quot;<br/>
+    },<br/>
+    {<br/>
+      &quot;type&quot;: &quot;button&quot;<br/>
+    }<br/>
+  ]<br/>
+}</pre><p>
+Renderer internally does:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">render(node) {<br/>
+   render(children)<br/>
+}</pre><p>
+again and again.</p>
+<p>This is called recursion.</p>
+<hr/>
+
+<h1 class="western">Internal Component Tree</h1>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Column<br/>
+ ├── Hero<br/>
+ └── Button</pre><p>
+Exactly like browser DOM trees.</p>
+<hr/>
+
+<h1 class="western">10. Dynamic Layout Engine</h1>
+<p>Layout Engine controls:</p>
+<ul>
+	<li><p>spacing</p></li>
+	<li><p>alignment</p></li>
+	<li><p>grids</p></li>
+	<li><p>nesting</p></li>
+	<li><p>responsive layouts</p></li>
+	<li><p>flex behavior</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Example</h1>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;row&quot;,<br/>
+  &quot;gap&quot;: 10,<br/>
+  &quot;align&quot;: &quot;center&quot;,<br/>
+  &quot;children&quot;: []<br/>
+}</pre><p>
+Renderer converts this into:</p>
+<ul>
+	<li><p>CSS Flexbox (Web)</p></li>
+	<li><p>Compose Row (Android)</p></li>
+	<li><p>SwiftUI Stack (iOS)</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">11. Responsive Layouts</h1>
+<p>Backend can send:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;columns&quot;: {<br/>
+     &quot;mobile&quot;: 1,<br/>
+     &quot;tablet&quot;: 2,<br/>
+     &quot;desktop&quot;: 4<br/>
+  }<br/>
+}</pre><p>
+Frontend checks screen size and adjusts layout dynamically.</p>
+<p>Exactly like CSS media queries.</p>
+<hr/>
+
+<h1 class="western">12. Styling Problem in SDUI</h1>
+<p>Sending full styling in JSON becomes messy.</p>
+<p>Bad example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;fontSize&quot;: 16,<br/>
+  &quot;padding&quot;: 12,<br/>
+  &quot;margin&quot;: 10<br/>
+}</pre><p>
+Large apps become impossible to manage.</p>
+<hr/>
+
+<h1 class="western">Real Solution — Design Tokens</h1>
+<p>Instead of sending full styles:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;textStyle&quot;: &quot;headingLarge&quot;<br/>
+}</pre><p>
+Frontend already knows:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">headingLarge = {<br/>
+  fontSize: 32,<br/>
+  fontWeight: &quot;bold&quot;<br/>
+}</pre><p>
+This keeps schemas clean.</p>
+<hr/>
+
+<h1 class="western">13. JSON vs Protobuf</h1>
+<p>Most SDUI systems use JSON.</p>
+<p>Advanced systems may use Protobuf.</p>
+<hr/>
+
+<h1 class="western">JSON</h1>
+<p>Human-readable format.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;button&quot;<br/>
+}</pre><p>
+Easy to debug.</p>
+<hr/>
+
+<h1 class="western">Protobuf</h1>
+<p>Binary optimized format created by Google.</p>
+<p>Benefits:</p>
+<ul>
+	<li><p>smaller size</p></li>
+	<li><p>faster transfer</p></li>
+	<li><p>better performance</p></li>
+	<li><p>strict validation</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Simple Analogy</h1>
+<p>JSON:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Normal readable notebook</pre><p>
+Protobuf:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Compressed machine package</pre><p>
+Large companies use Protobuf because huge SDUI schemas become very
+large.</p>
+<hr/>
+
+<h1 class="western">14. Schema Validation</h1>
+<p>Validation checks whether backend sent correct structure.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">if(!component.type) {<br/>
+   throw Error(&quot;Invalid schema&quot;)<br/>
+}</pre><p>
+Validation prevents renderer crashes.</p>
+<hr/>
+
+<h1 class="western">15. Schema Evolution</h1>
+<p>Very important production problem.</p>
+<hr/>
+
+<h1 class="western">Problem</h1>
+<p>Old app supports:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;button&quot;<br/>
+}</pre><p>
+Backend later sends:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;animated-button&quot;<br/>
+}</pre><p>
+Old app may crash.</p>
+<hr/>
+
+<h1 class="western">Solution</h1>
+<p>Use versioning.</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;schemaVersion&quot;: 2<br/>
+}</pre><p>
+This is called schema evolution.</p>
+<hr/>
+
+<h1 class="western">16. Action System</h1>
+<p>Backend can control actions.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;action&quot;: {<br/>
+     &quot;type&quot;: &quot;navigate&quot;,<br/>
+     &quot;screen&quot;: &quot;checkout&quot;<br/>
+  }<br/>
+}</pre><p>
+Frontend dynamically executes actions.</p>
+<hr/>
+
+<h1 class="western">17. Event System</h1>
+<p>Frontend generates events.</p>
+<p>Examples:</p>
+<ul>
+	<li><p>button clicked</p></li>
+	<li><p>screen viewed</p></li>
+	<li><p>card opened</p></li>
+	<li><p>video played</p></li>
+</ul>
+<p>Example flow:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">User Clicks Button<br/>
+        ↓<br/>
+Event Generated<br/>
+        ↓<br/>
+Analytics System<br/>
+        ↓<br/>
+Recommendation System</pre><p>
+Modern SDUI systems are heavily event-driven.</p>
+<hr/>
+
+<h1 class="western">18. Personalization Engine</h1>
+<p>Different users see different UI.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Premium User → Premium Banner<br/>
+New User → Free Trial Banner</pre><p>
+Backend decides UI using:</p>
+<ul>
+	<li><p>user profile</p></li>
+	<li><p>subscription</p></li>
+	<li><p>behavior</p></li>
+	<li><p>location</p></li>
+	<li><p>preferences</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">19. Experimentation System (A/B Testing)</h1>
+<p>Backend can test different layouts.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">User A → Red Button<br/>
+User B → Green Button</pre><p>
+Company checks which performs better.</p>
+<hr/>
+
+<h1 class="western">20. State Management</h1>
+<p>State = current data used by UI.</p>
+<p>Examples:</p>
+<ul>
+	<li><p>cart count</p></li>
+	<li><p>logged in user</p></li>
+	<li><p>selected tab</p></li>
+	<li><p>form input</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Why State Management is Needed</h1>
+<p>Many components need same data.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Navbar → cart count<br/>
+Sidebar → cart count<br/>
+Checkout → cart count</pre><p>
+Without central storage it becomes messy.</p>
+<hr/>
+
+<h1 class="western">Redux Flow</h1>
+<p>Redux creates one central store.</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">store = {<br/>
+  cart: 3,<br/>
+  user: &quot;Soham&quot;<br/>
+}</pre><p>
+Flow:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">User Action<br/>
+    ↓<br/>
+Dispatch Action<br/>
+    ↓<br/>
+Redux Updates Store<br/>
+    ↓<br/>
+UI Re-renders</pre>
+<hr/>
+
+<h1 class="western">21. DOM and Virtual DOM</h1>
+<h1 class="western">What is DOM?</h1>
+<p>Browser converts HTML into tree structure.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">&lt;body&gt;<br/>
+  &lt;h1&gt;Hello&lt;/h1&gt;<br/>
+&lt;/body&gt;</pre><p>
+Browser internally creates:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Body<br/>
+ └── H1<br/>
+      └── Hello</pre><p>
+This structure is DOM.</p>
+<hr/>
+
+<h1 class="western">Problem</h1>
+<p>Updating DOM repeatedly is slow.</p>
+<hr/>
+
+<h1 class="western">Solution — Virtual DOM</h1>
+<p>React creates lightweight copy of DOM in memory.</p>
+<p>Flow:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">State Changes<br/>
+      ↓<br/>
+New Virtual DOM Created<br/>
+      ↓<br/>
+React Compares Old vs New<br/>
+      ↓<br/>
+Only Changed Parts Updated</pre><p>
+This improves performance.</p>
+<hr/>
+
+<h1 class="western">22. SDUI + React Internally</h1>
+<p>Actual internal flow:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Backend JSON<br/>
+      ↓<br/>
+Renderer Parses JSON<br/>
+      ↓<br/>
+Registry Finds Components<br/>
+      ↓<br/>
+React.createElement()<br/>
+      ↓<br/>
+Virtual DOM<br/>
+      ↓<br/>
+Real DOM<br/>
+      ↓<br/>
+Screen Updated</pre>
+<hr/>
+
+<h1 class="western">23. Declarative UI Frameworks</h1>
+<p>Modern UI frameworks are declarative.</p>
+<p>Examples:</p>
+<ul>
+	<li><p>React</p></li>
+	<li><p>Jetpack Compose</p></li>
+	<li><p>SwiftUI</p></li>
+	<li><p>Flutter</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Jetpack Compose</h1>
+<p>Modern Android UI framework.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Text(&quot;Hello&quot;)</pre>
+<hr/>
+
+<h1 class="western">SwiftUI</h1>
+<p>Modern iOS UI framework.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Text(&quot;Hello&quot;)</pre>
+<hr/>
+
+<h1 class="western">Why SDUI Works Well With Them</h1>
+<p>Backend JSON maps naturally into declarative UI systems.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;text&quot;,<br/>
+  &quot;value&quot;: &quot;Hello&quot;<br/>
+}</pre>
+<hr/>
+
+<h1 class="western">24. Caching Layer</h1>
+<p>Caching improves performance.</p>
+<p>Without caching:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Every app open → fetch everything again</pre><p>
+Very slow.</p>
+<hr/>
+
+<h1 class="western">Cache Stores:</h1>
+<ul>
+	<li><p>schemas</p></li>
+	<li><p>images</p></li>
+	<li><p>layouts</p></li>
+	<li><p>API responses</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Result</h1>
+<ul>
+	<li><p>faster loading</p></li>
+	<li><p>lower server cost</p></li>
+	<li><p>better performance</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">25. Runtime Interpreter</h1>
+<p>Renderer behaves like interpreter.</p>
+<p>Exactly like browser interprets HTML.</p>
+<p>SDUI renderer interprets:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">JSON → UI</pre><p>
+at runtime.</p>
+<hr/>
+
+<h1 class="western">26. UI DSL (Domain Specific Language)</h1>
+<p>DSL means language made for one specific purpose.</p>
+<p>Examples:</p>
+<ul>
+	<li><p>HTML → webpage DSL</p></li>
+	<li><p>SQL → database DSL</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">SDUI DSL</h1>
+<p>Instead of huge raw JSON:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;button&quot;<br/>
+}</pre><p>
+Companies create cleaner UI languages.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Hero(title=&quot;Welcome&quot;)<br/>
+Button(text=&quot;Login&quot;)</pre><p>
+DSL improves readability and scalability.</p>
+<hr/>
+
+<h1 class="western">27. Streaming UI</h1>
+<p>Streaming UI updates screen in realtime.</p>
+<p>Examples:</p>
+<ul>
+	<li><p>live cricket scores</p></li>
+	<li><p>stock market</p></li>
+	<li><p>chat systems</p></li>
+	<li><p>realtime dashboards</p></li>
+</ul>
+<p>Implemented using:</p>
+<ul>
+	<li><p>WebSockets</p></li>
+	<li><p>Server Sent Events (SSE)</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">28. Microfrontend SDUI</h1>
+<p>Different teams manage different UI parts.</p>
+<p>Example:</p>
+<ul>
+	<li><p>payments team</p></li>
+	<li><p>profile team</p></li>
+	<li><p>recommendation team</p></li>
+</ul>
+<p>All combine dynamically.</p>
+<hr/>
+
+<h1 class="western">29. Real Companies Using SDUI Concepts</h1>
+<p>Many large applications use SDUI concepts:</p>
+<ul>
+	<li><p>Netflix</p></li>
+	<li><p>Amazon</p></li>
+	<li><p>Spotify</p></li>
+	<li><p>Swiggy</p></li>
+	<li><p>Zomato</p></li>
+	<li><p>YouTube</p></li>
+	<li><p>Airbnb</p></li>
+</ul>
+<p>These apps dynamically update:</p>
+<ul>
+	<li><p>banners</p></li>
+	<li><p>recommendations</p></li>
+	<li><p>layouts</p></li>
+	<li><p>offers</p></li>
+	<li><p>sections</p></li>
+</ul>
+<p>without app updates.</p>
+<hr/>
+
+<h1 class="western">30. Advantages of SDUI</h1>
+<ul>
+	<li><p>Faster UI updates</p></li>
+	<li><p>Dynamic layouts</p></li>
+	<li><p>Better personalization</p></li>
+	<li><p>Easier A/B testing</p></li>
+	<li><p>Reduced deployments</p></li>
+	<li><p>Cross-platform consistency</p></li>
+	<li><p>Reusable components</p></li>
+	<li><p>Better experimentation</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">31. Challenges of SDUI</h1>
+<ul>
+	<li><p>Complex architecture</p></li>
+	<li><p>Difficult debugging</p></li>
+	<li><p>Backend dependency</p></li>
+	<li><p>Schema compatibility issues</p></li>
+	<li><p>Rendering overhead</p></li>
+	<li><p>State management complexity</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">32. Best Tech Stack for Learning SDUI</h1>
+<h1 class="western">Frontend</h1>
+<ul>
+	<li><p>React</p></li>
+	<li><p>Vite</p></li>
+	<li><p>TypeScript</p></li>
+	<li><p>Tailwind CSS</p></li>
+	<li><p>Zustand/Redux</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Backend</h1>
+<ul>
+	<li><p>Node.js</p></li>
+	<li><p>Express.js</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Database</h1>
+<p>Recommended:</p>
+<ul>
+	<li><p>PostgreSQL + JSONB</p></li>
+</ul>
+<p>Alternative:</p>
+<ul>
+	<li><p>MongoDB</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">33. Best Beginner SDUI Project</h1>
+<p>Build:</p>
+<h1 class="western">Dynamic Landing Page Builder</h1>
+<p>Features:</p>
+<ul>
+	<li><p>backend controlled layouts</p></li>
+	<li><p>recursive rendering</p></li>
+	<li><p>component registry</p></li>
+	<li><p>action system</p></li>
+	<li><p>themes</p></li>
+	<li><p>caching</p></li>
+	<li><p>responsive layouts</p></li>
+</ul>
+<p>This single project teaches most SDUI concepts.</p>
+<hr/>
+
+<h1 class="western">34. Important SDUI Keywords</h1>
+<ul>
+	<li><p>Renderer Engine</p></li>
+	<li><p>Dynamic Rendering</p></li>
+	<li><p>Component Registry</p></li>
+	<li><p>Recursive Rendering</p></li>
+	<li><p>Runtime Rendering</p></li>
+	<li><p>Virtual DOM</p></li>
+	<li><p>Layout Engine</p></li>
+	<li><p>Schema Evolution</p></li>
+	<li><p>Personalization</p></li>
+	<li><p>Experimentation Engine</p></li>
+	<li><p>Runtime Interpreter</p></li>
+	<li><p>Design Tokens</p></li>
+	<li><p>Config Driven UI</p></li>
+	<li><p>Backend Controlled UI</p></li>
+	<li><p>Event Pipeline</p></li>
+	<li><p>Streaming UI</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">35. Final Understanding</h1>
+<p>SDUI is not just:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Backend sends JSON</pre><p>
+Real SDUI is combination of:</p>
+<ul>
+	<li><p>frontend engineering</p></li>
+	<li><p>backend engineering</p></li>
+	<li><p>rendering systems</p></li>
+	<li><p>runtime systems</p></li>
+	<li><p>layout systems</p></li>
+	<li><p>state management</p></li>
+	<li><p>personalization systems</p></li>
+	<li><p>experimentation infrastructure</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">36. Conclusion</h1>
+<p>Server-Driven UI (SDUI) is a modern architecture where backend
+dynamically controls UI while frontend acts as runtime renderer.</p>
+<p>SDUI allows:</p>
+<ul>
+	<li><p>dynamic interfaces</p></li>
+	<li><p>realtime UI updates</p></li>
+	<li><p>personalization</p></li>
+	<li><p>runtime rendering</p></li>
+	<li><p>scalable architecture</p></li>
+	<li><p>faster experimentation</p></li>
+</ul>
+<p>Modern applications use SDUI because it enables flexible and
+scalable user experiences without requiring frequent frontend
+deployments.</p>
+<p>As applications become larger, SDUI becomes closer to building a
+complete UI operating system where frontend behaves like a runtime
+engine that dynamically interprets and renders UI.</p>
+<p><br/>
+<br/>
+
+</p>
+</body>
+</html>

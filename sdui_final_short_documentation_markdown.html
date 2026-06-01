@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title></title>
+	<meta name="generator" content="LibreOffice 26.2.3.2 (Linux)"/>
+	<meta name="created" content="00:00:00"/>
+	<meta name="changed" content="00:00:00"/>
+	<style type="text/css">
+		@page { size: 8.27in 11.69in; margin: 0.79in }
+		p { margin-bottom: 0.1in; line-height: 115%; background: transparent }
+		h1 { margin-bottom: 0.08in; background: transparent; page-break-after: avoid }
+		h1.western { font-weight: bold; font-size: 18pt; font-family: "Liberation Sans", sans-serif }
+		h1.cjk { font-weight: bold; font-size: 18pt; font-family: "AR PL SungtiL GB" }
+		h1.ctl { font-weight: bold; font-family: "Noto Sans Devanagari"; font-size: 18pt }
+		h2 { margin-top: 0.14in; margin-bottom: 0.08in; background: transparent; page-break-after: avoid }
+		h2.western { font-weight: bold; font-size: 16pt; font-family: "Liberation Sans", sans-serif }
+		h2.cjk { font-weight: bold; font-size: 16pt; font-family: "AR PL SungtiL GB" }
+		h2.ctl { font-weight: bold; font-family: "Noto Sans Devanagari"; font-size: 16pt }
+		pre { font-size: 10pt; font-family: "Liberation Mono", monospace; background: transparent }
+		h3 { margin-top: 0.1in; margin-bottom: 0.08in; background: transparent; page-break-after: avoid }
+		h3.western { font-weight: bold; font-size: 14pt; font-family: "Liberation Sans", sans-serif }
+		h3.cjk { font-weight: bold; font-size: 14pt; font-family: "AR PL SungtiL GB" }
+		h3.ctl { font-weight: bold; font-family: "Noto Sans Devanagari"; font-size: 14pt }
+		blockquote { margin-right: 0.39in; margin-left: 0.39in; background: transparent }
+	</style>
+</head>
+<body lang="en-US" link="#000080" vlink="#800000" dir="ltr"><h1 class="western">
+Server-Driven UI (SDUI) Documentation</h1>
+<h2 class="western">Introduction</h2>
+<p>Server-Driven UI (SDUI) is a modern frontend architecture where
+the <b>server controls the UI structure</b> and the <b>frontend
+dynamically renders the UI</b> based on the data received from the
+backend.</p>
+<p>Instead of hardcoding every screen inside the frontend, the
+backend sends UI configuration in JSON format.</p>
+<p>This helps applications update UI quickly without requiring
+frequent app updates.</p>
+<hr/>
+
+<h1 class="western">What is SDUI?</h1>
+<p>SDUI stands for <b>Server-Driven UI</b>.</p>
+<p>In SDUI:</p>
+<ul>
+	<li><p>Backend decides <b>what to show</b></p></li>
+	<li><p>Frontend decides <b>how to render it</b></p></li>
+</ul>
+<p>The server sends:</p>
+<ul>
+	<li><p>layout</p></li>
+	<li><p>themes</p></li>
+	<li><p>components</p></li>
+	<li><p>actions</p></li>
+	<li><p>configurations</p></li>
+</ul>
+<p>The frontend reads this data and dynamically renders the UI.</p>
+<hr/>
+
+<h1 class="western">Why SDUI Was Introduced</h1>
+<p>Traditional frontend systems had several problems:</p>
+<ul>
+	<li><p>Small UI changes required app updates</p></li>
+	<li><p>Frequent deployments were needed</p></li>
+	<li><p>Dynamic layouts were difficult</p></li>
+	<li><p>A/B testing was hard</p></li>
+	<li><p>Multiple platforms required separate UI logic</p></li>
+</ul>
+<p>Companies needed:</p>
+<ul>
+	<li><p>faster UI updates</p></li>
+	<li><p>personalization</p></li>
+	<li><p>dynamic layouts</p></li>
+	<li><p>remote UI control</p></li>
+	<li><p>reusable components</p></li>
+</ul>
+<p>SDUI solves these problems.</p>
+<hr/>
+
+<h1 class="western">Traditional UI vs SDUI</h1>
+<h2 class="western">Traditional UI</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Frontend Code → Build App → Deploy → User Updates App</pre><p>
+UI is fixed inside frontend code.</p>
+<hr/>
+
+<h2 class="western">SDUI</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Frontend Requests Config<br/>
+        ↓<br/>
+Server Sends JSON<br/>
+        ↓<br/>
+Frontend Dynamically Renders UI</pre><p>
+UI becomes flexible and dynamic.</p>
+<hr/>
+
+<h1 class="western">Basic SDUI Example</h1>
+<h2 class="western">Backend JSON</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;hero&quot;,<br/>
+  &quot;title&quot;: &quot;Welcome to SDUI&quot;<br/>
+}</pre>
+<hr/>
+
+<h2 class="western">Frontend Renderer</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">if(component.type === &quot;hero&quot;) {<br/>
+   return &lt;Hero title={component.title} /&gt;<br/>
+}</pre><p>
+The frontend renders components dynamically using backend data.</p>
+<hr/>
+
+<h1 class="western">SDUI Architecture</h1>
+<h2 class="western">Main Parts</h2>
+<h3 class="western">1. Backend Server</h3>
+<p>Responsible for:</p>
+<ul>
+	<li><p>sending UI config</p></li>
+	<li><p>themes</p></li>
+	<li><p>layouts</p></li>
+	<li><p>business logic</p></li>
+</ul>
+<hr/>
+
+<h3 class="western">2. Renderer Engine</h3>
+<p>Frontend system that:</p>
+<ul>
+	<li><p>reads JSON</p></li>
+	<li><p>maps components</p></li>
+	<li><p>renders UI dynamically</p></li>
+</ul>
+<hr/>
+
+<h3 class="western">3. Component Registry</h3>
+<p>Maps JSON types to frontend components.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  hero: HeroComponent,<br/>
+  footer: FooterComponent<br/>
+}</pre>
+<hr/>
+
+<h3 class="western">4. Reusable Components</h3>
+<p>Examples:</p>
+<ul>
+	<li><p>Hero</p></li>
+	<li><p>Navbar</p></li>
+	<li><p>Footer</p></li>
+	<li><p>Cards</p></li>
+	<li><p>Buttons</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Working Flow of SDUI</h1>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">User Opens App<br/>
+      ↓<br/>
+Frontend Requests Screen<br/>
+      ↓<br/>
+Backend Sends JSON Config<br/>
+      ↓<br/>
+Renderer Parses JSON<br/>
+      ↓<br/>
+Frontend Renders Components</pre>
+<hr/>
+
+<h1 class="western">Dynamic Rendering</h1>
+<p>Dynamic rendering means:</p>
+<blockquote>UI is generated during runtime using backend
+configuration.</blockquote>
+<p>Example:</p>
+<p>Today:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Hero → Features → Footer</pre><p>
+Tomorrow:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">Hero → Pricing → Testimonials → FAQ</pre><p>
+No frontend deployment required.</p>
+<hr/>
+
+<h1 class="western">JSON Schema</h1>
+<p>JSON schema defines UI structure.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;type&quot;: &quot;button&quot;,<br/>
+  &quot;text&quot;: &quot;Login&quot;<br/>
+}</pre><p>
+Frontend understands:</p>
+<ul>
+	<li><p>which component to render</p></li>
+	<li><p>what data to display</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Personalization</h1>
+<p>Different users can see different UI.</p>
+<p>Example:</p>
+<h2 class="western">Premium User</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;banner&quot;: &quot;Premium Movies&quot;<br/>
+}</pre>
+<hr/>
+
+<h2 class="western">New User</h2>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;banner&quot;: &quot;Start Free Trial&quot;<br/>
+}</pre><p>
+Backend sends UI based on:</p>
+<ul>
+	<li><p>user type</p></li>
+	<li><p>subscription</p></li>
+	<li><p>preferences</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">A/B Testing</h1>
+<p>A/B testing means showing different UI versions to different
+users.</p>
+<p>Example:</p>
+<ul>
+	<li><p>User A sees red button</p></li>
+	<li><p>User B sees green button</p></li>
+</ul>
+<p>Company checks which version performs better.</p>
+<p>SDUI makes experimentation easier.</p>
+<hr/>
+
+<h1 class="western">Action Handling</h1>
+<p>Backend can also control actions.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;action&quot;: {<br/>
+    &quot;type&quot;: &quot;navigate&quot;,<br/>
+    &quot;screen&quot;: &quot;checkout&quot;<br/>
+  }<br/>
+}</pre><p>
+Frontend handles navigation dynamically.</p>
+<hr/>
+
+<h1 class="western">Animations in SDUI</h1>
+<p>Frontend already contains animation logic.</p>
+<p>Backend only sends configuration.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">{<br/>
+  &quot;animation&quot;: &quot;fade-in&quot;<br/>
+}</pre><p>
+Frontend applies corresponding animation dynamically.</p>
+<hr/>
+
+<h1 class="western">Real-World Examples</h1>
+<p>Many companies use SDUI concepts:</p>
+<ul>
+	<li><p>Netflix</p></li>
+	<li><p>Amazon</p></li>
+	<li><p>Swiggy</p></li>
+	<li><p>Zomato</p></li>
+	<li><p>Spotify</p></li>
+	<li><p>YouTube</p></li>
+	<li><p>Airbnb</p></li>
+</ul>
+<p>These apps dynamically change:</p>
+<ul>
+	<li><p>layouts</p></li>
+	<li><p>recommendations</p></li>
+	<li><p>banners</p></li>
+	<li><p>offers</p></li>
+	<li><p>themes</p></li>
+</ul>
+<p>without app updates.</p>
+<hr/>
+
+<h1 class="western">Advantages of SDUI</h1>
+<ul>
+	<li><p>Faster UI updates</p></li>
+	<li><p>Dynamic layouts</p></li>
+	<li><p>Better personalization</p></li>
+	<li><p>Easier A/B testing</p></li>
+	<li><p>Reduced deployments</p></li>
+	<li><p>Reusable components</p></li>
+	<li><p>Cross-platform consistency</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Disadvantages of SDUI</h1>
+<ul>
+	<li><p>More complex architecture</p></li>
+	<li><p>Harder debugging</p></li>
+	<li><p>Backend dependency</p></li>
+	<li><p>Rendering overhead</p></li>
+	<li><p>Advanced animations can be difficult</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Modular Architecture in SDUI</h1>
+<p>Modern SDUI systems use reusable modular components.</p>
+<p>Example:</p>
+<pre style="margin-bottom: 0.2in; background: #e1e1e1">components/<br/>
+ ├── hero.json<br/>
+ ├── footer.json<br/>
+ ├── pricing.json</pre><p>
+Benefits:</p>
+<ul>
+	<li><p>reusable layouts</p></li>
+	<li><p>cleaner architecture</p></li>
+	<li><p>better scalability</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Database Choices</h1>
+<h2 class="western">MongoDB</h2>
+<p>Best for:</p>
+<ul>
+	<li><p>flexible JSON structures</p></li>
+	<li><p>quick prototyping</p></li>
+	<li><p>rapid development</p></li>
+</ul>
+<hr/>
+
+<h2 class="western">PostgreSQL + JSONB</h2>
+<p>Best for:</p>
+<ul>
+	<li><p>scalable architecture</p></li>
+	<li><p>reusable relationships</p></li>
+	<li><p>modular systems</p></li>
+	<li><p>structured + dynamic data</p></li>
+</ul>
+<p>Modern scalable SDUI systems often use:</p>
+<blockquote>PostgreSQL + JSONB</blockquote>
+<hr/>
+
+<h1 class="western">Important SDUI Keywords</h1>
+<ul>
+	<li><p>Dynamic Rendering</p></li>
+	<li><p>JSON Schema</p></li>
+	<li><p>Renderer Engine</p></li>
+	<li><p>Component Registry</p></li>
+	<li><p>Runtime Rendering</p></li>
+	<li><p>Config Driven UI</p></li>
+	<li><p>Backend Controlled UI</p></li>
+	<li><p>Layout Engine</p></li>
+	<li><p>UI Orchestration</p></li>
+	<li><p>Personalization</p></li>
+	<li><p>A/B Testing</p></li>
+	<li><p>Adaptive UI</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Use Cases of SDUI</h1>
+<ul>
+	<li><p>E-Commerce Applications</p></li>
+	<li><p>OTT Platforms</p></li>
+	<li><p>Food Delivery Apps</p></li>
+	<li><p>Banking Dashboards</p></li>
+	<li><p>CMS Systems</p></li>
+	<li><p>Dynamic Landing Pages</p></li>
+</ul>
+<hr/>
+
+<h1 class="western">Interview Questions</h1>
+<h2 class="western">What is SDUI?</h2>
+<p>SDUI is a frontend architecture where backend controls UI
+configuration and frontend dynamically renders components.</p>
+<hr/>
+
+<h2 class="western">Why is SDUI used?</h2>
+<p>To provide:</p>
+<ul>
+	<li><p>dynamic layouts</p></li>
+	<li><p>faster UI updates</p></li>
+	<li><p>personalization</p></li>
+	<li><p>reduced deployments</p></li>
+</ul>
+<hr/>
+
+<h2 class="western">Biggest Advantage of SDUI?</h2>
+<p>UI can change without app updates.</p>
+<hr/>
+
+<h2 class="western">Role of Renderer Engine?</h2>
+<p>It reads backend JSON and dynamically renders components.</p>
+<hr/>
+
+<h1 class="western">Conclusion</h1>
+<p>Server-Driven UI (SDUI) is a modern architecture where the backend
+controls the UI and the frontend dynamically renders it.</p>
+<p>It helps applications become:</p>
+<ul>
+	<li><p>flexible</p></li>
+	<li><p>scalable</p></li>
+	<li><p>dynamic</p></li>
+	<li><p>customizable</p></li>
+</ul>
+<p>SDUI is widely used in modern applications because it allows
+faster UI changes, personalization, and better user experiences
+without requiring frequent frontend deployments.</p>
+<p><br/>
+<br/>
+
+</p>
+</body>
+</html>
