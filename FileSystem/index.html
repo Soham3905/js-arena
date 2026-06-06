@@ -1,14 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>File System</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <h2>File System</h2>
-    <div id="tree"></div>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h2>File System</h2>
+      <div id="tree"></div>
+      <div class="editor-panel">
+        <div id="selectedFileName">Select a file</div>
+        <textarea id="editor" rows="15" cols="60" placeholder="File content will appear here"></textarea>
+      </div>
+    </div>
     <script src="script.js"></script>
-</body>
+  </body>
 </html>

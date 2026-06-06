@@ -3,6 +3,28 @@ body{
     padding:20px;
 }
 
+.container{
+    max-width: 900px;
+}
+
+.editor-panel{
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#selectedFileName{
+    font-weight: 600;
+}
+
+#editor{
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    font-family: inherit;
+}
+
 .folder,
 .file{
     margin:5px 0;

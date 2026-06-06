@@ -14,12 +14,17 @@ let tree = {
           id: 3,
           name: "Resume.pdf",
           type: "file",
-          content: "",
+          content: "Hello World",
         },
       ],
     },
   ],
 };
+
+let selectedFile = null;
+
+const editor = document.getElementById("editor");
+const selectedFileName = document.getElementById("selectedFileName");
 
 const saved = localStorage.getItem("tree");
 if (saved) {
@@ -93,8 +98,21 @@ function removeNode(node, id) {
 function deleteNode(id) {
   if (id === tree.id) return;
   removeNode(tree, id);
+  if (selectedFile && selectedFile.id === id) {
+    selectedFile = null;
+    selectedFileName.textContent = "Select a file";
+    editor.value = "";
+  }
   refresh();
 }
+
+editor.addEventListener("input", () => {
+  if (selectedFile) {
+    selectedFile.content = editor.value;
+
+    localStorage.setItem("tree", JSON.stringify(tree));
+  }
+});
 
 function renderNode(node) {
   const li = document.createElement("li");
@@ -135,6 +153,11 @@ function renderNode(node) {
     if (node.type === "folder") {
       node.expanded = !node.expanded;
       refresh();
+    } else {
+      selectedFile = node;
+      selectedFileName.textContent = node.name;
+      editor.value = node.content || "";
+      editor.focus();
     }
   });
 
