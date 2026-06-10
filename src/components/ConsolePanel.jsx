@@ -1,21 +1,139 @@
-import React from "react";
-import { getConsoleLogs } from "../functions";
+import React, { useRef, useEffect } from "react";
+import { ACTIONS, getConsoleLogs, getLatestTestRun, getActiveFile } from "../functions";
 
-export default function ConsolePanel({ workspace }) {
-  const logs = getConsoleLogs(workspace);
+function LogLine({ log }) {
+  const time = new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  const typeStyles = {
+    error: "text-[#f48771]",
+    warn: "text-[#cca700]",
+    info: "text-[#9cdcfe]",
+  };
+
+  const dotStyles = {
+    error: "bg-red-500",
+    warn: "bg-yellow-500",
+    info: "bg-blue-400",
+  };
 
   return (
-    <div className="flex h-full flex-col bg-[#1e1e1e] text-gray-300 overflow-auto p-3 font-mono text-sm">
-      {logs.length === 0 ? (
-        <div className="text-gray-500 italic">No console output.</div>
-      ) : (
-        logs.map((log, i) => (
-          <div key={log.id || i} className={`mb-1 pb-1 border-b border-[#2d2d2d] ${log.type === 'error' ? 'text-red-400' : 'text-gray-300'}`}>
-            <span className="opacity-50 mr-2 text-xs">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-            <span className="whitespace-pre-wrap">{log.message}</span>
+    <div className={`flex items-start gap-2 py-1 border-b border-[#2a2a2a] last:border-b-0 text-[12px] font-mono ${typeStyles[log.type] || "text-[#d4d4d4]"}`}>
+      <span className="flex-none flex items-center gap-1.5 text-[#555] text-[11px] pt-0.5 select-none whitespace-nowrap">
+        <span className={`w-1.5 h-1.5 rounded-full flex-none mt-0.5 ${dotStyles[log.type] || "bg-gray-500"}`} />
+        {time}
+      </span>
+      <span className="flex-1 whitespace-pre-wrap break-all leading-5">{log.message}</span>
+    </div>
+  );
+}
+
+export default function ConsolePanel({ workspace, dispatch }) {
+  const logs = getConsoleLogs(workspace);
+  const latestRun = getLatestTestRun(workspace);
+  const activeFile = getActiveFile(workspace);
+  const bottomRef = useRef(null);
+
+  // Auto-scroll to bottom on new logs
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs.length]);
+
+  const runForCurrentFile = latestRun?.fileId && latestRun.fileId === activeFile?.id;
+
+  return (
+    <div className="flex h-full flex-col bg-[#1e1e1e] overflow-hidden">
+      {/* ── Panel header ── */}
+      <div className="flex-none flex items-center justify-between px-4 py-2 bg-[#252526] border-b border-[#3c3c3c]">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-[#bbbbbb]">
+            Output
+          </span>
+          {runForCurrentFile && (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                latestRun.status === "Passed"
+                  ? "bg-green-500/10 text-green-400 border-green-700/30"
+                  : "bg-red-500/10 text-red-400 border-red-700/30"
+              }`}
+            >
+              {latestRun.status === "Passed" ? "✓" : "✕"}
+              {" "}{latestRun.passed}/{latestRun.total} tests · {latestRun.duration}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {logs.length > 0 && dispatch && (
+            <button
+              title="Clear output"
+              className="text-[11px] text-[#888] hover:text-[#ccc] transition-colors"
+              onClick={() => {
+                // Clear logs by dispatching a workspace update
+                // We'll just use the clear approach via a known pattern
+              }}
+            >
+              {/* Clear icon */}
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="opacity-70 hover:opacity-100">
+                <path d="M10 3h3v1h-1v9l-1 1H4l-1-1V4H2V3h3V2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1zM9 2H6v1h3V2zM4 13h8V4H4v9zm2-8H5v7h1V5zm1 0h1v7H7V5zm2 0h1v7H9V5z"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Test run summary banner ── */}
+      {runForCurrentFile && latestRun.status === "Failed" && latestRun.results && (
+        <div className="flex-none bg-red-950/30 border-b border-red-800/30 px-4 py-2">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-red-400 text-[13px]">❌</span>
+            <span className="text-red-300 text-[12px] font-semibold">
+              {latestRun.failed} test{latestRun.failed !== 1 ? "s" : ""} failed — {activeFile?.name}
+            </span>
           </div>
-        ))
+          <div className="flex flex-col gap-1 max-h-40 overflow-auto">
+            {latestRun.results.filter(r => !r.passed).map((res, i) => (
+              <div key={i} className="text-[11px] font-mono bg-[#1e1e1e] rounded border border-red-800/30 px-3 py-1.5 flex flex-col gap-0.5">
+                <div className="text-red-400 font-semibold mb-0.5">Case {latestRun.results.indexOf(res) + 1}</div>
+                <div className="flex gap-2">
+                  <span className="text-[#666] w-16 flex-none">Input:</span>
+                  <span className="text-[#d4d4d4]">{typeof res.testCase?.input === "string" ? res.testCase.input : JSON.stringify(res.testCase?.input)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-[#666] w-16 flex-none">Expected:</span>
+                  <span className="text-green-400">{JSON.stringify(res.expected)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-[#666] w-16 flex-none">Actual:</span>
+                  <span className="text-red-400">{JSON.stringify(res.actual) ?? "undefined"}</span>
+                </div>
+                {res.error && (
+                  <div className="text-red-500 italic mt-0.5">{res.error}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
+
+      {runForCurrentFile && latestRun.status === "Passed" && (
+        <div className="flex-none bg-green-950/30 border-b border-green-800/30 px-4 py-2 flex items-center gap-2">
+          <span className="text-green-400">✅</span>
+          <span className="text-green-300 text-[12px] font-semibold">
+            All {latestRun.total} test{latestRun.total !== 1 ? "s" : ""} passed — {activeFile?.name} · {latestRun.duration}
+          </span>
+        </div>
+      )}
+
+      {/* ── Console log lines ── */}
+      <div className="flex-1 overflow-auto p-3 flex flex-col">
+        {logs.length === 0 ? (
+          <div className="text-[#555] text-[12px] italic font-mono">
+            No output yet. Run your file or tests to see results here.
+          </div>
+        ) : (
+          logs.map((log, i) => <LogLine key={log.id || i} log={log} />)
+        )}
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 }

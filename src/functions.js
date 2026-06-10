@@ -1019,6 +1019,17 @@ function createTestExecutor(sourceCode) {
       error: () => { },
     };
 
+    // Parse the input: if it's a raw string, try JSON.parse so "[2,3]" becomes [2,3]
+    let parsedInput = input;
+    if (typeof input === "string") {
+      try {
+        parsedInput = JSON.parse(input);
+      } catch {
+        // not valid JSON — keep as raw string
+        parsedInput = input;
+      }
+    }
+
     const fn = new Function(
       "input",
       "testCase",
@@ -1033,7 +1044,7 @@ throw new Error("Define solve(...args), solution(...args), or main(input, testCa
 `
     );
 
-    return fn(input, testCase, consoleProxy);
+    return fn(parsedInput, testCase, consoleProxy);
   };
 }
 
@@ -1192,7 +1203,19 @@ export function executeCode(sourceCode, runner) {
 }
 
 export function compareOutput(actual, expected) {
-  return String(actual).trim() === String(expected).trim();
+  // Direct string comparison (both converted to trimmed strings)
+  if (String(actual).trim() === String(expected).trim()) return true;
+
+  // Try parsing both as JSON to compare structurally (e.g. "5" and 5)
+  try {
+    const parsedActual = typeof actual === "string" ? JSON.parse(actual) : actual;
+    const parsedExpected = typeof expected === "string" ? JSON.parse(expected) : expected;
+    if (JSON.stringify(parsedActual) === JSON.stringify(parsedExpected)) return true;
+  } catch {
+    // ignore parse errors
+  }
+
+  return false;
 }
 
 export function sectionStyle(section) {

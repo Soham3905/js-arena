@@ -4,14 +4,8 @@ import { MdMoreVert } from "react-icons/md";
 import ContextMenu from "./ContextMenu";
 import {
   ACTIONS,
-  canDeleteNode,
-  canMoveNode,
-  canRenameNode,
-  canWriteNode,
   createTree,
-  getNodePermissions,
   getRootNodeId,
-  searchWorkspace,
 } from "../functions";
 
 const REQUEST_ACTIONS = {
@@ -30,23 +24,28 @@ function getFileIcon(extension) {
   switch (extension) {
     case "js":
     case "jsx":
+      return <FaFileCode className="text-yellow-400" size={13} />;
     case "ts":
     case "tsx":
+      return <FaFileCode className="text-blue-400" size={13} />;
     case "json":
-      return <FaFileCode className="text-yellow-500" />;
+      return <FaFileCode className="text-orange-400" size={13} />;
+    case "md":
+      return <FaFileAlt className="text-gray-400" size={13} />;
     case "png":
     case "jpg":
     case "jpeg":
     case "gif":
     case "webp":
-      return <FaFileImage className="text-purple-500" />;
+      return <FaFileImage className="text-purple-400" size={13} />;
     default:
-      return <FaFileAlt className="text-gray-400" />;
+      return <FaFileAlt className="text-gray-400" size={13} />;
   }
 }
 
 function FileTreeNode({
   node,
+  depth,
   activeFileId,
   allowAddFile,
   allowAddFolder,
@@ -60,7 +59,9 @@ function FileTreeNode({
 }) {
   const isFolder = node.type === "folder";
   const isSelected = activeFileId === node.id;
-  
+  const isRoot = node.id === rootNodeId;
+  const indentPx = depth * 12;
+
   const handleToggle = (e) => {
     e.stopPropagation();
     if (isFolder) {
@@ -71,13 +72,13 @@ function FileTreeNode({
   };
 
   const menuItems = [];
-  
+
   if (isFolder) {
     if (allowAddFile) menuItems.push({ label: "New File", action: () => dispatch({ type: REQUEST_ACTIONS.ADD_FILE, parentId: node.id }) });
     if (allowAddFolder) menuItems.push({ label: "New Folder", action: () => dispatch({ type: REQUEST_ACTIONS.ADD_FOLDER, parentId: node.id }) });
   }
-  
-  if (node.id !== rootNodeId) {
+
+  if (!isRoot) {
     if (menuItems.length > 0) menuItems.push({ type: "separator" });
     if (allowRename) menuItems.push({ label: "Rename", action: () => dispatch({ type: REQUEST_ACTIONS.RENAME_NODE, nodeId: node.id, currentName: node.name }) });
     if (allowDelete) menuItems.push({ label: "Delete", action: () => dispatch({ type: REQUEST_ACTIONS.DELETE_NODE, nodeId: node.id }) });
@@ -93,8 +94,13 @@ function FileTreeNode({
 
   return (
     <li>
-      <div 
-        className={`group flex items-center py-1 px-2 cursor-pointer select-none text-gray-700 hover:bg-gray-200 ${isSelected ? "bg-blue-100 text-blue-900 font-medium" : ""}`}
+      <div
+        className={`group flex items-center h-[22px] cursor-pointer select-none text-[13px] transition-colors ${
+          isSelected
+            ? "bg-[#094771] text-white"
+            : "text-[#cccccc] hover:bg-[#2a2d2e]"
+        }`}
+        style={{ paddingLeft: `${indentPx + 8}px`, paddingRight: "4px" }}
         onClick={handleToggle}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -102,38 +108,55 @@ function FileTreeNode({
           onContextMenu(e, node, menuItems);
         }}
       >
-        <span className="w-4 flex justify-center text-gray-400 mr-1 flex-none">
-          {isFolder ? (node.expanded ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />) : null}
-        </span>
-        
-        <span className="mr-2 flex-none">
+        {/* Chevron for folders */}
+        <span className="w-4 flex-none flex items-center justify-center mr-0.5">
           {isFolder ? (
-            node.expanded ? <FaFolderOpen className="text-blue-400" /> : <FaFolder className="text-blue-400" />
+            node.expanded ? (
+              <FaChevronDown size={9} className="opacity-70" />
+            ) : (
+              <FaChevronRight size={9} className="opacity-70" />
+            )
+          ) : null}
+        </span>
+
+        {/* Icon */}
+        <span className="mr-1.5 flex-none flex items-center">
+          {isFolder ? (
+            node.expanded ? (
+              <FaFolderOpen className="text-[#e8c27a]" size={13} />
+            ) : (
+              <FaFolder className="text-[#e8c27a]" size={13} />
+            )
           ) : (
             getFileIcon(node.extension)
           )}
         </span>
-        
-        <span className="truncate flex-1 text-sm">{node.name}</span>
-        
-        {menuItems.length > 0 && (
-          <div 
-            className="hidden group-hover:flex items-center justify-center w-6 h-6 rounded hover:bg-gray-300 ml-1 flex-none"
+
+        {/* Name */}
+        <span className={`truncate flex-1 ${isRoot ? "font-semibold text-[#bbbbbb] uppercase text-[11px] tracking-wider" : ""}`}>
+          {node.name}
+        </span>
+
+        {/* More menu button */}
+        {!isRoot && menuItems.length > 0 && (
+          <div
+            className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-white/10 ml-1 flex-none"
             onClick={(e) => {
               e.stopPropagation();
               onContextMenu(e, node, menuItems);
             }}
           >
-            <MdMoreVert size={16} />
+            <MdMoreVert size={14} className="opacity-70" />
           </div>
         )}
       </div>
 
       {isFolder && node.expanded && node.children?.length ? (
-        <ul className="pl-4">
+        <ul>
           {node.children.map((child) => (
             <FileTreeNode
               key={child.id}
+              depth={depth + 1}
               activeFileId={activeFileId}
               allowAddFile={allowAddFile}
               allowAddFolder={allowAddFolder}
@@ -163,7 +186,7 @@ export default function FileTree({
   clipboard,
 }) {
   const [contextMenu, setContextMenu] = useState(null);
-  
+
   const tree = createTree(workspace);
   const activeFileId = workspace.tabs?.activeTabId || null;
   const rootNodeId = getRootNodeId(workspace);
@@ -172,46 +195,79 @@ export default function FileTree({
     e.preventDefault();
     e.stopPropagation();
     if (items.length === 0) return;
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      node,
-      items
-    });
+    setContextMenu({ x: e.clientX, y: e.clientY, node, items });
   };
 
-  const closeContextMenu = () => {
-    setContextMenu(null);
-  };
+  const closeContextMenu = () => setContextMenu(null);
 
   return (
-    <div className="flex h-full flex-col bg-[#f8f9fa] overflow-auto select-none" onClick={closeContextMenu}>
-      {tree ? (
-        <ul className="py-2 pr-2">
-          <FileTreeNode
-            activeFileId={activeFileId}
-            allowAddFile={allowAddFile}
-            allowAddFolder={allowAddFolder}
-            allowDelete={allowDelete}
-            allowRename={allowRename}
-            clipboard={clipboard}
-            dispatch={dispatch}
-            node={tree}
-            rootNodeId={rootNodeId}
-            workspace={workspace}
-            onContextMenu={handleContextMenu}
-          />
-        </ul>
-      ) : (
-        <div className="p-4 text-sm text-gray-500 italic text-center">Empty Workspace</div>
-      )}
-      
+    <div className="flex h-full flex-col bg-[#252526] overflow-hidden select-none" onClick={closeContextMenu}>
+      {/* EXPLORER header — VS Code style */}
+      <div className="flex-none flex items-center justify-between px-4 py-2 border-b border-[#3c3c3c]">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-[#bbbbbb]">
+          Explorer
+        </span>
+        <div className="flex items-center gap-1">
+          {allowAddFile && (
+            <button
+              title="New File"
+              className="p-1 rounded text-[#bbbbbb] hover:text-white hover:bg-white/10 transition-colors"
+              onClick={() => {
+                const rootId = rootNodeId;
+                dispatch({ type: REQUEST_ACTIONS.ADD_FILE, parentId: rootId });
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M9 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7L9 2zm0 1.5L12.5 7H9V3.5zM8 9h1v2h2v1H9v2H8v-2H6v-1h2V9z"/>
+              </svg>
+            </button>
+          )}
+          {allowAddFolder && (
+            <button
+              title="New Folder"
+              className="p-1 rounded text-[#bbbbbb] hover:text-white hover:bg-white/10 transition-colors"
+              onClick={() => {
+                dispatch({ type: REQUEST_ACTIONS.ADD_FOLDER, parentId: rootNodeId });
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M14 4H8L6 2H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1zm-4 5H8v2H7V9H5V8h2V6h1v2h2v1z"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tree content */}
+      <div className="flex-1 overflow-auto py-1">
+        {tree ? (
+          <ul className="list-none m-0 p-0">
+            <FileTreeNode
+              depth={0}
+              activeFileId={activeFileId}
+              allowAddFile={allowAddFile}
+              allowAddFolder={allowAddFolder}
+              allowDelete={allowDelete}
+              allowRename={allowRename}
+              clipboard={clipboard}
+              dispatch={dispatch}
+              node={tree}
+              rootNodeId={rootNodeId}
+              workspace={workspace}
+              onContextMenu={handleContextMenu}
+            />
+          </ul>
+        ) : (
+          <div className="p-4 text-sm text-[#888] italic text-center">Empty Workspace</div>
+        )}
+      </div>
+
       {contextMenu && (
-        <ContextMenu 
-          x={contextMenu.x} 
-          y={contextMenu.y} 
-          items={contextMenu.items} 
-          onClose={closeContextMenu} 
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenu.items}
+          onClose={closeContextMenu}
         />
       )}
     </div>

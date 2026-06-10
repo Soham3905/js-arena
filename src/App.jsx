@@ -11,7 +11,7 @@ import TestCasePanel from "./components/TestCasePanel";
 import * as F from "./functions";
 import { getWorkspacePart, setWorkspacePart } from "./db";
 
-const STORAGE_KEY = "sdui.appConfig.v3";
+const STORAGE_KEY = "sdui.appConfig.v4";
 const EDIT_HISTORY_IDLE_MS = 500;
 
 const REQUEST_ACTIONS = {
@@ -69,7 +69,7 @@ const SectionWrapper = React.memo(({ section, registry, props, className = "", s
 
   if (section.type === "Header") {
     return (
-      <div className={`w-full h-full bg-white z-10 ${className}`} style={style} role="region" aria-label={section.title}>
+      <div className={`w-full h-full z-10 ${className}`} style={style} role="region" aria-label={section.title}>
         <ErrorBoundary>
           <Component {...props} />
         </ErrorBoundary>
@@ -77,30 +77,17 @@ const SectionWrapper = React.memo(({ section, registry, props, className = "", s
     );
   }
 
-  const isRaw = section.type === "Editor" || section.type === "TestCasePanel" || section.type === "ConsolePanel" || section.type === "FileTree";
-
-  if (isRaw) {
-    return (
-      <div className={`flex flex-col w-full h-full min-w-0 min-h-0 border border-gray-200 bg-white overflow-hidden ${className}`} style={style} role="region" aria-label={section.title}>
-        <ErrorBoundary>
-          <Component {...props} />
-        </ErrorBoundary>
-      </div>
-    );
-  }
-
+  // All panel sections render their own internal header — just provide a border wrapper
   return (
-    <div className={`flex flex-col border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0 min-h-0 ${className}`} style={style} role="region" aria-label={section.title}>
-      {section.type !== "Header" && (
-        <div className="bg-gray-100 px-3 py-1 font-semibold text-xs border-b border-gray-200 flex-none">
-          {section.title}
-        </div>
-      )}
-      <div className="flex-1 overflow-auto bg-white p-2">
-        <ErrorBoundary>
-          <Component {...props} />
-        </ErrorBoundary>
-      </div>
+    <div
+      className={`flex flex-col w-full h-full min-w-0 min-h-0 overflow-hidden border border-[#3c3c3c] ${className}`}
+      style={style}
+      role="region"
+      aria-label={section.title}
+    >
+      <ErrorBoundary>
+        <Component {...props} />
+      </ErrorBoundary>
     </div>
   );
 });
@@ -348,10 +335,13 @@ export default function App() {
 
   return (
     <div
-      className="h-screen w-full bg-gray-50 grid overflow-hidden text-sm"
+      className="h-screen w-full overflow-hidden text-sm"
       style={{
+        background: "#1e1e1e",
+        display: "grid",
         gridTemplateColumns: `repeat(100, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(100, minmax(0, 1fr))`
+        gridTemplateRows: `repeat(100, minmax(0, 1fr))`,
+        gap: "1px",
       }}
     >
       {workspace.layout?.sections?.filter(s => s.visible).map(section => {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ACTIONS,
   canExecuteNode,
@@ -7,16 +7,35 @@ import {
   getLatestTestRun,
 } from "../functions";
 
+function safeStringify(val) {
+  if (val === undefined) return "undefined";
+  if (val === null) return "null";
+  try { return JSON.stringify(val); } catch { return String(val); }
+}
+
+function StatusBadge({ status }) {
+  const passed = status === "Passed";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+        passed ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"
+      }`}
+    >
+      {passed ? "✓" : "✕"} {status}
+    </span>
+  );
+}
+
 export default function TestCasePanel({ workspace, dispatch }) {
+  const [activeCase, setActiveCase] = useState(0);
   const activeFile = getActiveFile(workspace);
   const running = workspace.runtime?.running ?? false;
 
-  // Issue #6: Show a cleaner empty state when no file is selected
   if (!activeFile) {
     return (
-      <div className="flex h-full items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-400 text-sm">
-          <div className="text-2xl mb-2">📂</div>
+      <div className="flex h-full items-center justify-center bg-[#1e1e1e]">
+        <div className="text-center text-[#555] text-sm">
+          <div className="text-3xl mb-3">📂</div>
           <div>Select a file to view test cases</div>
         </div>
       </div>
@@ -25,169 +44,239 @@ export default function TestCasePanel({ workspace, dispatch }) {
 
   const testCases = getCurrentTestCases(workspace, activeFile.id);
   const latestRun = getLatestTestRun(workspace);
-  // Issue #5: Use Boolean() for safety
   const canRunTests = Boolean(activeFile) && canExecuteNode(workspace, activeFile.id);
+  const runForCurrentFile = latestRun?.fileId === activeFile.id;
+
+  // clamp activeCase index
+  const safeCaseIdx = testCases.length > 0 ? Math.min(activeCase, testCases.length - 1) : 0;
+  const currentCase = testCases[safeCaseIdx] || null;
+  const currentResult = runForCurrentFile && latestRun?.results?.[safeCaseIdx];
 
   return (
-    <div className="flex h-full flex-col gap-3 p-2 bg-gray-50 overflow-auto">
-      <div className="rounded border bg-white p-3 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold uppercase tracking-wide text-gray-600">Test Cases</div>
-          <div className="flex gap-2">
-            <button
-              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-xs font-medium rounded border border-gray-300 transition-colors"
-              onClick={() => {
-                dispatch({ type: ACTIONS.ADD_TEST_CASE, fileId: activeFile.id });
-              }}
-            >
-              + Add Case
-            </button>
-            {/* Issue #11: Show running state on button */}
-            <button
-              className={`px-3 py-1 text-xs font-medium rounded border transition-colors ${
-                canRunTests && !running
-                  ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-700 shadow-sm"
-                  : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
-              }`}
-              onClick={() => {
-                if (canRunTests && !running) {
-                  dispatch({ type: ACTIONS.RUN_TESTS, fileId: activeFile.id });
-                }
-              }}
-              disabled={!canRunTests || running}
-            >
-              {running ? "Running..." : "Run Tests"}
-            </button>
-          </div>
+    <div className="flex h-full flex-col bg-[#1e1e1e] overflow-hidden">
+      {/* ── Panel header ── */}
+      <div className="flex-none flex items-center justify-between px-4 py-2.5 bg-[#252526] border-b border-[#3c3c3c]">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-[#bbbbbb]">
+          Test Cases
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            id="btn-add-test-case"
+            className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded bg-[#3c3c3c] text-[#cccccc] hover:bg-[#4a4a4a] border border-[#555] transition-colors"
+            onClick={() => {
+              dispatch({ type: ACTIONS.ADD_TEST_CASE, fileId: activeFile.id });
+              setActiveCase(testCases.length); // jump to new case
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+              <path d="M4 0h2v4h4v2H6v4H4V6H0V4h4z"/>
+            </svg>
+            Add Case
+          </button>
+          <button
+            id="btn-run-tests"
+            className={`flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded border transition-colors ${
+              canRunTests && !running
+                ? "bg-[#0e7a0d] hover:bg-[#1a9e19] text-white border-[#0e7a0d] shadow-sm"
+                : "bg-[#3c3c3c] text-[#666] border-[#555] cursor-not-allowed"
+            }`}
+            onClick={() => {
+              if (canRunTests && !running) {
+                dispatch({ type: ACTIONS.RUN_TESTS, fileId: activeFile.id });
+              }
+            }}
+            disabled={!canRunTests || running}
+          >
+            {running ? (
+              <span className="animate-pulse">⏳</span>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <polygon points="2,1 9,5 2,9"/>
+              </svg>
+            )}
+            {running ? "Running…" : "Run Tests"}
+          </button>
         </div>
-
-        {(!testCases || testCases.length === 0) ? (
-          <div className="text-sm text-gray-500 p-4 text-center border border-dashed rounded bg-gray-50">
-            No test cases found. Click "+ Add Case" to create one.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {testCases.map((tc, index) => (
-              <div key={tc.id} className="border rounded p-3 bg-gray-50/50 hover:bg-white transition-colors relative group">
-                <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="text-xs font-bold text-gray-700 bg-gray-200 px-2 py-1 rounded">Case {index + 1}</div>
-                    {/* Issue #7: Hidden badge */}
-                    {tc.hidden && (
-                      <span className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 px-1.5 py-0.5 rounded">Hidden</span>
-                    )}
-                  </div>
-                  <button
-                    className="text-gray-400 hover:text-red-600 transition-colors"
-                    onClick={() => dispatch({ type: ACTIONS.DELETE_TEST_CASE, testCaseId: tc.id, fileId: activeFile.id })}
-                    title="Delete Test Case"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">Input</label>
-                    <textarea
-                      className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow font-mono"
-                      rows={2}
-                      value={typeof tc.input === "string" ? tc.input : JSON.stringify(tc.input)}
-                      onChange={(e) => {
-                        dispatch({
-                          type: ACTIONS.UPDATE_TEST_CASE,
-                          testCaseId: tc.id,
-                          fileId: activeFile.id,
-                          updates: {
-                            input: (() => {
-                              try {
-                                return JSON.parse(e.target.value);
-                              } catch {
-                                return e.target.value;
-                              }
-                            })()
-                          }
-                        });
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">Expected Output</label>
-                    <textarea
-                      className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow font-mono"
-                      rows={1}
-                      value={typeof tc.expected === "string" ? tc.expected : JSON.stringify(tc.expected)}
-                      onChange={(e) => {
-                        dispatch({
-                          type: ACTIONS.UPDATE_TEST_CASE,
-                          testCaseId: tc.id,
-                          fileId: activeFile.id,
-                          updates: {
-                            expected: (() => {
-                              try {
-                                return JSON.parse(e.target.value);
-                              } catch {
-                                return e.target.value;
-                              }
-                            })()
-                          }
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Issue #8: Only show results for the current active file */}
-      {latestRun && latestRun.fileId === activeFile.id && (
-        <div className={`rounded border p-4 shadow-sm ${latestRun.status === 'Passed' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-          <div className="flex justify-between items-center mb-3 pb-2 border-b border-black/10">
-            <div className="flex items-center gap-2">
-              <span className={`text-lg ${latestRun.status === 'Passed' ? 'text-green-600' : 'text-red-600'}`}>
-                {latestRun.status === 'Passed' ? '✓' : '✕'}
-              </span>
-              <span className={`font-bold ${latestRun.status === 'Passed' ? 'text-green-800' : 'text-red-800'}`}>
-                {latestRun.status}
-              </span>
-            </div>
-            <span className="text-sm font-medium bg-white/60 px-2 py-1 rounded">
-              {latestRun.passed} / {latestRun.total} passed{" "}
-              <span className="text-gray-500 font-normal">({latestRun.duration})</span>
-            </span>
+      {/* ── No test cases ── */}
+      {testCases.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[#555]">
+          <div className="text-3xl">🧪</div>
+          <div className="text-[13px]">No test cases yet</div>
+          <button
+            className="text-[12px] text-[#007acc] hover:underline"
+            onClick={() => dispatch({ type: ACTIONS.ADD_TEST_CASE, fileId: activeFile.id })}
+          >
+            + Add your first test case
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* ── Case tabs ── */}
+          <div className="flex-none flex items-center gap-1 px-3 pt-2 pb-0 overflow-x-auto border-b border-[#3c3c3c] bg-[#1e1e1e]">
+            {testCases.map((tc, i) => {
+              const result = runForCurrentFile ? latestRun?.results?.[i] : null;
+              const hasPassed = result?.passed === true;
+              const hasFailed = result !== null && result?.passed === false;
+
+              return (
+                <button
+                  key={tc.id}
+                  onClick={() => setActiveCase(i)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] rounded-t border-t-2 transition-colors whitespace-nowrap ${
+                    i === safeCaseIdx
+                      ? "bg-[#252526] text-white border-t-[#007acc]"
+                      : "text-[#888] hover:text-[#ccc] hover:bg-[#2a2d2e] border-t-transparent"
+                  }`}
+                >
+                  {hasPassed && <span className="text-green-400 text-[10px]">✓</span>}
+                  {hasFailed && <span className="text-red-400 text-[10px]">✕</span>}
+                  Case {i + 1}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Delete test case"
+                    className="ml-1 text-[#555] hover:text-red-400 transition-colors text-[10px] leading-none cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dispatch({ type: ACTIONS.DELETE_TEST_CASE, testCaseId: tc.id, fileId: activeFile.id });
+                      setActiveCase(Math.max(0, i - 1));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        dispatch({ type: ACTIONS.DELETE_TEST_CASE, testCaseId: tc.id, fileId: activeFile.id });
+                        setActiveCase(Math.max(0, i - 1));
+                      }
+                    }}
+                    title="Delete"
+                  >
+                    ✕
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          {latestRun.error && (
-            <div className="text-sm text-red-700 mt-2 font-mono whitespace-pre-wrap bg-red-100/50 p-2 rounded border border-red-200">{latestRun.error}</div>
+          {/* ── Active case content ── */}
+          {currentCase && (
+            <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+              {/* Input */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#888]">
+                  Input
+                </label>
+                <textarea
+                  id={`test-input-${currentCase.id}`}
+                  className="w-full text-[13px] rounded border border-[#3c3c3c] bg-[#252526] text-[#d4d4d4] p-3 font-mono focus:ring-1 focus:ring-[#007acc] focus:border-[#007acc] outline-none resize-none transition-shadow"
+                  rows={3}
+                  placeholder="e.g. [2, 3] or 5 or &quot;hello&quot;"
+                  value={typeof currentCase.input === "string" ? currentCase.input : safeStringify(currentCase.input)}
+                  onChange={(e) => {
+                    dispatch({
+                      type: ACTIONS.UPDATE_TEST_CASE,
+                      testCaseId: currentCase.id,
+                      fileId: activeFile.id,
+                      updates: { input: e.target.value },
+                    });
+                  }}
+                />
+              </div>
+
+              {/* Expected Output */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#888]">
+                  Expected Output
+                </label>
+                <textarea
+                  id={`test-expected-${currentCase.id}`}
+                  className="w-full text-[13px] rounded border border-[#3c3c3c] bg-[#252526] text-[#d4d4d4] p-3 font-mono focus:ring-1 focus:ring-[#007acc] focus:border-[#007acc] outline-none resize-none transition-shadow"
+                  rows={2}
+                  placeholder="e.g. 5"
+                  value={typeof currentCase.expected === "string" ? currentCase.expected : safeStringify(currentCase.expected)}
+                  onChange={(e) => {
+                    dispatch({
+                      type: ACTIONS.UPDATE_TEST_CASE,
+                      testCaseId: currentCase.id,
+                      fileId: activeFile.id,
+                      updates: { expected: e.target.value },
+                    });
+                  }}
+                />
+              </div>
+
+              {/* Result for this case */}
+              {currentResult && (
+                <div
+                  className={`rounded-lg border p-4 ${
+                    currentResult.passed
+                      ? "bg-green-950/40 border-green-800/40"
+                      : "bg-red-950/40 border-red-800/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`text-xl ${currentResult.passed ? "text-green-400" : "text-red-400"}`}>
+                      {currentResult.passed ? "✅" : "❌"}
+                    </span>
+                    <span className={`text-[13px] font-semibold ${currentResult.passed ? "text-green-300" : "text-red-300"}`}>
+                      {currentResult.passed ? "Test Passed" : "Test Failed"}
+                    </span>
+                  </div>
+
+                  {!currentResult.passed && (
+                    <div className="flex flex-col gap-2 text-[12px]">
+                      <div className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                        <span className="text-[#888] font-medium pt-0.5">Input</span>
+                        <code className="bg-[#1e1e1e] px-2 py-1 rounded border border-[#3c3c3c] text-[#d4d4d4] break-all">
+                          {safeStringify(currentResult.testCase?.input)}
+                        </code>
+                      </div>
+                      <div className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                        <span className="text-[#888] font-medium pt-0.5">Expected</span>
+                        <code className="bg-[#1e1e1e] px-2 py-1 rounded border border-green-800/40 text-green-300 break-all">
+                          {safeStringify(currentResult.expected)}
+                        </code>
+                      </div>
+                      <div className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                        <span className="text-[#888] font-medium pt-0.5">Actual</span>
+                        <code className="bg-[#1e1e1e] px-2 py-1 rounded border border-red-800/40 text-red-300 break-all">
+                          {safeStringify(currentResult.actual)}
+                        </code>
+                      </div>
+                      {currentResult.error && (
+                        <div className="mt-1 bg-red-950/60 text-red-400 px-3 py-2 rounded border border-red-800/30 font-mono text-[11px] whitespace-pre-wrap">
+                          {currentResult.error}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Issue #9: Scroll container for large result sets */}
-          <div className="max-h-80 overflow-auto flex flex-col gap-2 mt-2">
-            {latestRun.results && latestRun.results.map((res, i) => (
-              !res.passed && (
-                <div key={i} className="text-sm bg-white p-3 border border-red-200 rounded shadow-sm">
-                  <div className="font-semibold text-red-700 mb-2 border-b border-red-100 pb-1">Case {i + 1} Failed</div>
-                  <div className="grid grid-cols-[80px_1fr] gap-1 mb-1">
-                    <span className="text-gray-500 font-medium">Input:</span>
-                    <span className="font-mono bg-gray-50 px-1 rounded border border-gray-100">{JSON.stringify(res.testCase.input)}</span>
-                  </div>
-                  <div className="grid grid-cols-[80px_1fr] gap-1 mb-1">
-                    <span className="text-gray-500 font-medium">Expected:</span>
-                    <span className="font-mono bg-green-50 text-green-700 px-1 rounded border border-green-100">{JSON.stringify(res.expected)}</span>
-                  </div>
-                  <div className="grid grid-cols-[80px_1fr] gap-1">
-                    <span className="text-gray-500 font-medium">Actual:</span>
-                    <span className="font-mono bg-red-50 text-red-700 px-1 rounded border border-red-100">{JSON.stringify(res.actual)}</span>
-                  </div>
-                  {res.error && <div className="text-red-600 mt-2 pt-2 border-t border-red-100 italic">{res.error}</div>}
-                </div>
-              )
-            ))}
-          </div>
-        </div>
+          {/* ── Overall run summary ── */}
+          {runForCurrentFile && latestRun && (
+            <div className={`flex-none flex items-center justify-between px-4 py-2 border-t ${
+              latestRun.status === "Passed"
+                ? "border-green-800/40 bg-green-950/30"
+                : "border-red-800/40 bg-red-950/30"
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`text-[13px] ${latestRun.status === "Passed" ? "text-green-400" : "text-red-400"}`}>
+                  {latestRun.status === "Passed" ? "✅" : "❌"}
+                </span>
+                <span className={`text-[12px] font-semibold ${latestRun.status === "Passed" ? "text-green-300" : "text-red-300"}`}>
+                  {latestRun.status === "Passed" ? "All tests passed" : "Some tests failed"}
+                </span>
+              </div>
+              <span className="text-[12px] text-[#888]">
+                {latestRun.passed}/{latestRun.total} passed · {latestRun.duration}
+              </span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
