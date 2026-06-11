@@ -1,12 +1,178 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ACTIONS, canExecuteNode, canRedo, canUndo, canWriteNode, getActiveFile, getActiveTab, searchWorkspace } from "../functions";
+import { LAYOUT_PRESETS, DEFAULT_LAYOUT_ID } from "../layouts";
 
+// ────────────────────────────────────────────────────────────
+// Layout SVG icons (small 28×20 diagrams representing each layout)
+// ────────────────────────────────────────────────────────────
+function LayoutIcon({ preset, size = 28 }) {
+  const W = size;
+  const H = Math.round(size * 0.72);
+  const s = preset.sections;
+
+  // Convert 100-grid coords to pixel coords
+  const x = (col) => Math.round(((col - 1) / 100) * W);
+  const y = (row) => Math.round(((row - 1) / 100) * H);
+  const w = (c1, c2) => Math.max(1, x(c2) - x(c1));
+  const h = (r1, r2) => Math.max(1, y(r2) - y(r1));
+
+  const vis = preset.visibility;
+
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", flexShrink: 0 }}>
+      {/* Background */}
+      <rect x={0} y={0} width={W} height={H} fill="#1e1e1e" rx={2} />
+      {/* Header bar */}
+      <rect x={x(s.header.colStart)} y={y(s.header.rowStart)} width={w(s.header.colStart, s.header.colEnd)} height={h(s.header.rowStart, s.header.rowEnd)} fill="#3c3c3c" />
+      {/* Tree */}
+      {vis.tree && <rect x={x(s.tree.colStart)} y={y(s.tree.rowStart)} width={w(s.tree.colStart, s.tree.colEnd)} height={h(s.tree.rowStart, s.tree.rowEnd)} fill="#252526" />}
+      {/* Editor */}
+      {vis.editor && <rect x={x(s.editor.colStart)} y={y(s.editor.rowStart)} width={w(s.editor.colStart, s.editor.colEnd)} height={h(s.editor.rowStart, s.editor.rowEnd)} fill="#1e1e2e" />}
+      {/* TestCases */}
+      {vis.testCases && <rect x={x(s.testCases.colStart)} y={y(s.testCases.rowStart)} width={w(s.testCases.colStart, s.testCases.colEnd)} height={h(s.testCases.rowStart, s.testCases.rowEnd)} fill="#2a2a3a" />}
+      {/* Console */}
+      {vis.console && <rect x={x(s.console.colStart)} y={y(s.console.rowStart)} width={w(s.console.colStart, s.console.colEnd)} height={h(s.console.rowStart, s.console.rowEnd)} fill="#1a1a1a" />}
+    </svg>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Layout Picker dropdown
+// ────────────────────────────────────────────────────────────
+function LayoutPicker({ activePresetId, dispatch }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    window.addEventListener("click", handler);
+    return () => window.removeEventListener("click", handler);
+  }, []);
+
+  const activePreset = LAYOUT_PRESETS.find((p) => p.id === activePresetId) || LAYOUT_PRESETS[0];
+
+  function selectPreset(id) {
+    dispatch({ type: ACTIONS.CHANGE_LAYOUT, layoutId: id });
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      {/* Trigger button */}
+      <button
+        id="header-layout-picker"
+        title="Change Layout"
+        aria-label="Change layout"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-2 h-7 px-2.5 text-[12px] font-medium rounded border transition-colors
+          ${open
+            ? "bg-[#007acc]/20 border-[#007acc] text-white"
+            : "bg-[#252526] border-[#4a4a4a] text-[#cccccc] hover:bg-[#3a3a3a] hover:border-[#666]"
+          }`}
+      >
+        {/* Mini layout preview */}
+        <LayoutIcon preset={activePreset} size={24} />
+        <span className="hidden sm:inline truncate max-w-[80px]">{activePreset.name}</span>
+        {/* Chevron */}
+        <svg
+          width="8" height="8" viewBox="0 0 10 6" fill="currentColor"
+          style={{ opacity: 0.7, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+        >
+          <path d="M0 0l5 6 5-6z" />
+        </svg>
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div
+          role="listbox"
+          aria-label="Layout presets"
+          className="absolute right-0 top-full mt-1.5 z-[100] bg-[#252526] border border-[#4a4a4a] rounded-lg shadow-2xl overflow-hidden"
+          style={{ minWidth: 260, maxHeight: 420, overflowY: "auto" }}
+        >
+          {/* Heading */}
+          <div className="px-4 pt-3 pb-2 border-b border-[#3c3c3c]">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-[#888]">
+              Layout Presets
+            </p>
+          </div>
+
+          {/* Preset list */}
+          <ul className="p-1.5 flex flex-col gap-0.5">
+            {LAYOUT_PRESETS.map((preset) => {
+              const isActive = preset.id === activePreset.id;
+              return (
+                <li key={preset.id}>
+                  <button
+                    id={`layout-preset-${preset.id}`}
+                    role="option"
+                    aria-selected={isActive}
+                    onClick={() => selectPreset(preset.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors
+                      ${isActive
+                        ? "bg-[#007acc]/20 border border-[#007acc]/40 text-white"
+                        : "text-[#cccccc] hover:bg-white/5 border border-transparent"
+                      }`}
+                  >
+                    {/* SVG preview */}
+                    <div className={`rounded flex-none p-0.5 ${isActive ? "ring-1 ring-[#007acc]" : "ring-1 ring-[#3c3c3c]"}`}>
+                      <LayoutIcon preset={preset} size={40} />
+                    </div>
+
+                    {/* Text */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-medium truncate">{preset.name}</span>
+                        {isActive && (
+                          <span className="flex-none text-[10px] px-1.5 py-0.5 rounded-full bg-[#007acc] text-white font-semibold leading-none">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[#888] mt-0.5 truncate">{preset.description}</div>
+                    </div>
+
+                    {/* Check mark */}
+                    {isActive && (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="flex-none text-[#007acc]">
+                        <path d="M2 7l4 4 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Footer hint */}
+          <div className="px-4 py-2.5 border-t border-[#3c3c3c]">
+            <p className="text-[10px] text-[#555]">
+              Tip: You can also edit <code className="text-[#888]">layout.sections</code> in config.js for full control.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Header
+// ────────────────────────────────────────────────────────────
 export default function Header({ workspace, dispatch, title }) {
   const activeFile = getActiveFile(workspace);
   const activeTab = getActiveTab(workspace);
   const canSave = activeFile && activeTab?.dirty && canWriteNode(workspace, activeFile.id);
   const canRun = activeFile && canExecuteNode(workspace, activeFile.id);
   const activeLabel = activeFile ? `${activeFile.name}${activeTab?.dirty ? " ●" : ""}` : null;
+
+  // The active layout preset ID is stored on workspace.layout.activePresetId (set by changeLayout)
+  // Fall back to "default" if not yet set.
+  const activePresetId = workspace?.layout?.activePresetId || DEFAULT_LAYOUT_ID;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -96,8 +262,13 @@ export default function Header({ workspace, dispatch, title }) {
         )}
       </div>
 
-      {/* Right: Actions */}
+      {/* Right: Layout picker + Actions */}
       <div className="flex items-center gap-1.5 min-w-[200px] justify-end">
+        {/* Layout Picker */}
+        <LayoutPicker activePresetId={activePresetId} dispatch={dispatch} />
+
+        <div className="w-px h-4 bg-white/15 mx-1" />
+
         <button
           id="header-undo"
           className="w-7 h-7 flex items-center justify-center text-[#cccccc] hover:bg-white/10 rounded disabled:opacity-30 transition-colors text-[16px]"

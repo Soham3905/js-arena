@@ -1,6 +1,9 @@
+import { applyLayoutPreset } from "./layouts";
+
 export const ACTIONS = {
   ADD_FILE: "ADD_FILE",
   ADD_FOLDER: "ADD_FOLDER",
+  CHANGE_LAYOUT: "CHANGE_LAYOUT",
   CLOSE_TAB: "CLOSE_TAB",
   DELETE_NODE: "DELETE_NODE",
   DUPLICATE_NODE: "DUPLICATE_NODE",
@@ -1036,11 +1039,10 @@ function createTestExecutor(sourceCode) {
       "console",
       `
 ${sourceCode}
-const args = Array.isArray(input) ? input : [input];
-if (typeof solve === "function") return solve(...args);
-if (typeof solution === "function") return solution(...args);
+if (typeof solve === "function") return solve(input);
+if (typeof solution === "function") return solution(input);
 if (typeof main === "function") return main(input, testCase);
-throw new Error("Define solve(...args), solution(...args), or main(input, testCase) to run tests.");
+throw new Error("Define solve(input), solution(input), or main(input, testCase) to run tests.");
 `
     );
 
@@ -1533,6 +1535,17 @@ export function deleteTestCase(appConfig, fileId, testCaseId) {
   return next;
 }
 
+export function changeLayout(appConfig, layoutId) {
+  const next = normalizeWorkspace(appConfig);
+  const updatedSections = applyLayoutPreset(next.layout?.sections || [], layoutId);
+  next.layout = {
+    ...next.layout,
+    sections: updatedSections,
+    activePresetId: layoutId,
+  };
+  return next;
+}
+
 export function dispatchWorkspaceAction(appConfig, action) {
   if (!action?.type) return appConfig;
 
@@ -1541,6 +1554,8 @@ export function dispatchWorkspaceAction(appConfig, action) {
       return addFolder(appConfig, action.parentId, action.name);
     case ACTIONS.ADD_FILE:
       return addFile(appConfig, action.parentId, action.name);
+    case ACTIONS.CHANGE_LAYOUT:
+      return changeLayout(appConfig, action.layoutId);
     case ACTIONS.RENAME_NODE:
       return renameNode(appConfig, action.nodeId, action.newName);
     case ACTIONS.DELETE_NODE:

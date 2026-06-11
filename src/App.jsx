@@ -96,10 +96,20 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState(null);
   const [clipboard, setClipboard] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
   const pendingEditRef = useRef(null);
   const saveTimeoutRef = useRef(null);
 
   useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 900);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+
+  useEffect(() => { 
     async function loadData() {
       const savedStr = localStorage.getItem(STORAGE_KEY);
       let baseConfig = savedStr ? JSON.parse(savedStr) : null;
@@ -301,12 +311,57 @@ export default function App() {
       case F.ACTIONS.ADD_TEST_CASE:
       case F.ACTIONS.UPDATE_TEST_CASE:
       case F.ACTIONS.DELETE_TEST_CASE:
+      case F.ACTIONS.CHANGE_LAYOUT:
         clearPendingEdit();
         applyWorkspaceAction(action);
         return;
       default:
         applyWorkspaceAction(action);
     }
+  }
+
+  if (isMobile) {
+    return (
+      <div style={{
+        minHeight: "100svh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%)",
+        color: "#fff",
+        textAlign: "center",
+        padding: "2rem",
+        fontFamily: "'Segoe UI', system-ui, sans-serif",
+      }}>
+        <div style={{ fontSize: "4rem", marginBottom: "1.5rem" }}>🖥️</div>
+        <h1 style={{
+          fontSize: "1.6rem",
+          fontWeight: 700,
+          marginBottom: "1rem",
+          background: "linear-gradient(90deg, #a78bfa, #60a5fa)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+        }}>
+          Desktop Only
+        </h1>
+        <p style={{ color: "#94a3b8", fontSize: "1rem", maxWidth: "320px", lineHeight: 1.6 }}>
+          This IDE is designed for larger screens.
+          <br />
+          Please switch to a <strong style={{ color: "#c4b5fd" }}>desktop or laptop</strong> for the best experience.
+        </p>
+        <div style={{
+          marginTop: "2rem",
+          padding: "0.6rem 1.4rem",
+          borderRadius: "8px",
+          border: "1px solid #334155",
+          color: "#64748b",
+          fontSize: "0.85rem",
+        }}>
+          Minimum width: 900px
+        </div>
+      </div>
+    );
   }
 
   if (loading || !workspace) {
