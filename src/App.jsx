@@ -10,6 +10,7 @@ import Placeholder from "./components/Placeholder";
 import Preview from "./components/Preview";
 import TestCasePanel from "./components/TestCasePanel";
 import * as F from "./functions";
+import { ALLOWED_EXTENSIONS, isAllowedExtension } from "./functions";
 import { getWorkspacePart, setWorkspacePart } from "./db";
 import { initShortcuts, destroyShortcuts } from "./shortcuts/shortcutManager";
 
@@ -99,6 +100,8 @@ export default function App() {
   const [workspace, setWorkspace] = useState(null);
   const [clipboard, setClipboard] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
+  // Controls the "no index.js found — create it?" modal
+  const [showIndexModal, setShowIndexModal] = useState(false);
   const pendingEditRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   // Always-current workspace ref — used by shortcut handlers to avoid stale closures
@@ -270,12 +273,32 @@ export default function App() {
       case REQUEST_ACTIONS.ADD_FILE: {
         const name = prompt("Enter File Name")?.trim();
         if (!name) return;
+        if (!isAllowedExtension(name)) {
+          const ext = name.includes(".") ? name.split(".").pop() : "(none)";
+          alert(
+            `❌ Unsupported file type: ".${ext}"\n\n` +
+            `Allowed extensions: ${ALLOWED_EXTENSIONS.map(e => "." + e).join(", ")}\n\n` +
+            `Only .js and .jsx files can be executed. .txt, .json, and .md can be opened and edited.`
+          );
+          return;
+        }
         applyWorkspaceAction({ type: F.ACTIONS.ADD_FILE, parentId: action.parentId, name });
         return;
       }
       case REQUEST_ACTIONS.RENAME_NODE: {
         const newName = prompt("Enter New Name", action.currentName || "")?.trim();
         if (!newName) return;
+        const nodeBeingRenamed = workspaceRef.current?.fileTree?.[action.nodeId];
+        if (nodeBeingRenamed?.type === "file") {
+          if (!isAllowedExtension(newName)) {
+            const ext = newName.includes(".") ? newName.split(".").pop() : "(none)";
+            alert(
+              `❌ Unsupported file type: ".${ext}"\n\n` +
+              `Allowed extensions: ${ALLOWED_EXTENSIONS.map(e => "." + e).join(", ")}`
+            );
+            return;
+          }
+        }
         applyWorkspaceAction({ type: F.ACTIONS.RENAME_NODE, nodeId: action.nodeId, newName });
         return;
       }
@@ -320,6 +343,17 @@ export default function App() {
           setClipboard(null);
         }
         return;
+      case F.ACTIONS.RUN_PROJECT: {
+        clearPendingEdit();
+        // If there is no index.js yet, offer to create one instead of
+        // silently failing with an error buried in the Output panel.
+        if (!F.findEntryFile(workspaceRef.current)) {
+          setShowIndexModal(true);
+          return;
+        }
+        applyWorkspaceAction(action);
+        return;
+      }
       case F.ACTIONS.SAVE_FILE:
       case F.ACTIONS.RUN_ACTIVE_FILE:
       case F.ACTIONS.RUN_TESTS:
@@ -353,6 +387,51 @@ export default function App() {
 
   // Keep dispatchRef in sync so shortcutManager always calls the latest dispatch
   dispatchRef.current = dispatch;
+
+  /**
+   * Called when the user clicks "Create" in the no-index.js modal.
+   *
+   * All four steps run inside a SINGLE setWorkspace call so React commits
+   * them together — no intermediate renders, no stale-closure issues:
+   *   1. addFile      — creates index.js in the workspace root folder
+   *   2. updateContent — writes the starter template into it
+   *   3. openTab      — opens it in the editor
+   *   4. runProject   — bundles and executes immediately
+   */
+  function handleCreateIndexAndRun() {
+    setShowIndexModal(false);
+    setWorkspace((prev) => {
+      const rootId = prev?.workspace?.rootNodeId;
+      if (!rootId) return prev;
+
+      // 1. Create index.js in the root folder.
+      let next = F.addFile(prev, rootId, "index.js");
+
+      // 2. Find the node that was just created.
+      const newNode = Object.values(next.fileTree || {}).find(
+        (n) => n && n.type === "file" && n.name === "index.js"
+      );
+      if (!newNode?.contentId) return next;
+
+      // 3. Populate it with a minimal starter template.
+      const starterCode = [
+        "// index.js — entry point for Run Project",
+        "// Import from other files in your workspace:",
+        "//   import { myFunc } from './myFile.js';",
+        "",
+        'console.log("Project started!");',
+      ].join("\n");
+      next = F.updateContent(next, newNode.contentId, starterCode);
+
+      // 4. Open the new file so the user sees it immediately.
+      next = F.openTab(next, newNode.id, { pinned: false });
+
+      // 5. Run the project right away (bundle + execute).
+      next = F.runProject(next);
+
+      return next;
+    });
+  }
 
   if (isMobile) {
     return (
@@ -426,6 +505,139 @@ export default function App() {
     <>
       {/* Command Palette — fixed overlay, rendered above the IDE grid */}
       <CommandPalette workspace={workspace} dispatch={dispatch} />
+
+      {/* ── No index.js modal ─────────────────────────────────────────────── */}
+      {showIndexModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="index-modal-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(2px)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowIndexModal(false); }}
+        >
+          <div
+            style={{
+              background: "#252526",
+              border: "1px solid #454545",
+              borderRadius: 10,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
+              width: "100%",
+              maxWidth: 440,
+              padding: "28px 28px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              fontFamily: "'Segoe UI', system-ui, sans-serif",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 8,
+                background: "#1e3a5f",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="#569cd6">
+                  <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/>
+                </svg>
+              </div>
+              <div>
+                <div id="index-modal-title" style={{ color: "#ffffff", fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>
+                  No Entry Point Found
+                </div>
+                <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>
+                  Run Project needs an index.js to start
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <p style={{ color: "#cccccc", fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+              <strong style={{ color: "#fff" }}>Run Project</strong> bundles all your
+              files starting from a single entry point. Create{" "}
+              <code style={{
+                background: "#1e1e1e", color: "#9cdcfe",
+                padding: "1px 6px", borderRadius: 4, fontSize: 12,
+              }}>index.js</code>{" "}
+              automatically and start coding right away.
+            </p>
+
+            {/* Preview */}
+            <div style={{
+              background: "#1e1e1e",
+              border: "1px solid #3c3c3c",
+              borderRadius: 6,
+              padding: "10px 14px",
+              fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
+              fontSize: 12,
+              lineHeight: 1.7,
+            }}>
+              <div style={{ color: "#608b4e" }}>{'// index.js — entry point for Run Project'}</div>
+              <div style={{ color: "#608b4e" }}>{'// Import from other files in your workspace:'}</div>
+              <div style={{ color: "#608b4e" }}>{"//   import { myFunc } from './myFile.js';"}</div>
+              <div style={{ color: "#555", marginTop: 4 }}>&nbsp;</div>
+              <div>
+                <span style={{ color: "#dcdcaa" }}>console</span>
+                <span style={{ color: "#d4d4d4" }}>.</span>
+                <span style={{ color: "#dcdcaa" }}>log</span>
+                <span style={{ color: "#d4d4d4" }}>(</span>
+                <span style={{ color: "#ce9178" }}>&quot;Project started!&quot;</span>
+                <span style={{ color: "#d4d4d4" }}>);</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+              <button
+                id="index-modal-cancel"
+                onClick={() => setShowIndexModal(false)}
+                style={{
+                  padding: "7px 18px", fontSize: 13, fontWeight: 500,
+                  background: "transparent",
+                  color: "#cccccc",
+                  border: "1px solid #454545",
+                  borderRadius: 6, cursor: "pointer",
+                  transition: "background 0.15s, border-color 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#3a3a3a"; e.currentTarget.style.borderColor = "#666"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#454545"; }}
+              >
+                Cancel
+              </button>
+              <button
+                id="index-modal-create"
+                onClick={handleCreateIndexAndRun}
+                style={{
+                  padding: "7px 20px", fontSize: 13, fontWeight: 600,
+                  background: "#0e7a0d",
+                  color: "#ffffff",
+                  border: "1px solid #0e7a0d",
+                  borderRadius: 6, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#1a9e19"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#0e7a0d"; }}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm1 9H7V7h2v4zm0-5H7V4h2v2z"/>
+                </svg>
+                Create index.js
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className="h-screen w-full overflow-hidden text-sm"

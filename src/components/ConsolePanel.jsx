@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { ACTIONS, getConsoleLogs, getLatestTestRun, getActiveFile } from "../functions";
+import { ACTIONS, getConsoleLogs, getLatestTestRun, getActiveFile, findEntryFile } from "../functions";
 
 function LogLine({ log }) {
   const time = new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -31,6 +31,7 @@ export default function ConsolePanel({ workspace, dispatch }) {
   const logs = getConsoleLogs(workspace);
   const latestRun = getLatestTestRun(workspace);
   const activeFile = getActiveFile(workspace);
+  const hasEntryFile = findEntryFile(workspace) !== null;
   const bottomRef = useRef(null);
 
   // Auto-scroll to bottom on new logs
@@ -126,8 +127,38 @@ export default function ConsolePanel({ workspace, dispatch }) {
       {/* ── Console log lines ── */}
       <div className="flex-1 overflow-auto p-3 flex flex-col">
         {logs.length === 0 ? (
-          <div className="text-[#555] text-[12px] italic font-mono">
-            No output yet. Run your file or tests to see results here.
+          <div className="flex flex-col gap-3">
+            <div className="text-[#555] text-[12px] italic font-mono">
+              No output yet. Run your file or tests to see results here.
+            </div>
+            {/* ── index.js entry-point hint (shown only when index.js is absent) ── */}
+            {!hasEntryFile && (
+              <div
+                className="mt-2 rounded-lg border border-[#3c3c3c] bg-[#252526] p-3 flex flex-col gap-2"
+                style={{ borderLeft: "3px solid #007acc" }}
+              >
+                <div className="flex items-center gap-2">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="#007acc">
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/>
+                  </svg>
+                  <span className="text-[#007acc] text-[11px] font-semibold uppercase tracking-wider">Getting Started — Run Project</span>
+                </div>
+                <p className="text-[#aaa] text-[11px] leading-5">
+                  <strong className="text-[#ccc]">Run Project</strong> bundles all your files starting from an entry point.
+                  To use it, create a file named{" "}
+                  <code className="text-[#9cdcfe] bg-[#1e1e1e] px-1 py-0.5 rounded text-[11px]">index.js</code>
+                  {" "}in any folder — that file is your entry point.
+                </p>
+                <div className="text-[11px] font-mono text-[#608b4e] bg-[#1e1e1e] rounded p-2 leading-5">
+                  <div className="text-[#888] mb-1">{'// index.js'}</div>
+                  <div>{"import { count } from './counter.js';"}</div>
+                  <div>{"console.log(count);"}</div>
+                </div>
+                <p className="text-[#666] text-[10px]">
+                  💡 Right-click a folder in the Explorer → <em>New File</em> → type <code className="text-[#888]">index.js</code>
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           logs.map((log, i) => <LogLine key={log.id || i} log={log} />)

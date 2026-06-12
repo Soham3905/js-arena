@@ -5,6 +5,7 @@ import {
   canRedo,
   canUndo,
   canWriteNode,
+  findEntryFile,
   getActiveFile,
   getActiveTab,
   searchFiles,
@@ -472,7 +473,9 @@ export default function Header({ workspace, dispatch, title }) {
   const activeFile = getActiveFile(workspace);
   const activeTab = getActiveTab(workspace);
   const canSave = activeFile && activeTab?.dirty && canWriteNode(workspace, activeFile.id);
-  const canRun = activeFile && canExecuteNode(workspace, activeFile.id);
+  const canRunFile = activeFile && canExecuteNode(workspace, activeFile.id);
+  const entryFile = findEntryFile(workspace);
+  const canRunProject = entryFile !== null;
   const activeLabel = activeFile ? `${activeFile.name}${activeTab?.dirty ? " ●" : ""}` : null;
 
   // The active layout preset ID is stored on workspace.layout.activePresetId (set by changeLayout)
@@ -572,16 +575,27 @@ export default function Header({ workspace, dispatch, title }) {
           </button>
 
           <button
-            id="header-run"
-            className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors disabled:opacity-40 bg-[#0e7a0d] text-white hover:bg-[#1a9e19] border border-[#0e7a0d] disabled:cursor-not-allowed shadow-sm"
-            disabled={!canRun}
+            id="header-run-file"
+            className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors disabled:opacity-40 bg-[#1e1e1e] text-gray-300 hover:bg-[#2a2a2a] border border-[#333] disabled:cursor-not-allowed shadow-sm"
+            disabled={!canRunFile}
             onClick={() => dispatch({ type: ACTIONS.RUN_ACTIVE_FILE, fileId: activeFile?.id })}
             title={`Run file (${kbRun})`}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
               <polygon points="2,1 9,5 2,9"/>
             </svg>
-            Run
+            Run File
+          </button>
+          <button
+            id="header-run-project"
+            className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors bg-[#0e7a0d] text-white hover:bg-[#1a9e19] border border-[#0e7a0d] shadow-sm"
+            onClick={() => dispatch({ type: ACTIONS.RUN_PROJECT })}
+            title={canRunProject ? `Run Project — index.js` : `No index.js found — click to auto-create and run your project`}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+              <polygon points="2,1 9,5 2,9"/>
+            </svg>
+            Run Project
           </button>
         </div>
       </div>

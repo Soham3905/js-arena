@@ -1,4 +1,16 @@
 import { applyLayoutPreset } from "./layouts";
+import { runJavaScript } from "./bundler/sandboxRunner.js";
+import {
+  findEntryFile,
+  detectImports,
+  resolveImportPath,
+  buildDependencyGraph,
+} from "./bundler/dependencyGraph.js";
+import {
+  stripImports,
+  stripExports,
+  bundleProject,
+} from "./bundler/bundler.js";
 
 export const ACTIONS = {
   ADD_FILE: "ADD_FILE",
@@ -12,6 +24,7 @@ export const ACTIONS = {
   REDO: "REDO",
   RENAME_NODE: "RENAME_NODE",
   RUN_ACTIVE_FILE: "RUN_ACTIVE_FILE",
+  RUN_PROJECT: "RUN_PROJECT",
   RUN_TESTS: "RUN_TESTS",
   SAVE_FILE: "SAVE_FILE",
   SWITCH_TAB: "SWITCH_TAB",
@@ -22,13 +35,28 @@ export const ACTIONS = {
   UPDATE_TEST_CASE: "UPDATE_TEST_CASE",
   DELETE_TEST_CASE: "DELETE_TEST_CASE",
   // Search overlay actions
-  OPEN_QUICK_OPEN:        "OPEN_QUICK_OPEN",
-  OPEN_CONTENT_SEARCH:    "OPEN_CONTENT_SEARCH",
-  CLOSE_SEARCH:           "CLOSE_SEARCH",
+  OPEN_QUICK_OPEN: "OPEN_QUICK_OPEN",
+  OPEN_CONTENT_SEARCH: "OPEN_CONTENT_SEARCH",
+  CLOSE_SEARCH: "CLOSE_SEARCH",
   // Command palette actions
-  OPEN_COMMAND_PALETTE:   "OPEN_COMMAND_PALETTE",
-  CLOSE_COMMAND_PALETTE:  "CLOSE_COMMAND_PALETTE",
+  OPEN_COMMAND_PALETTE: "OPEN_COMMAND_PALETTE",
+  CLOSE_COMMAND_PALETTE: "CLOSE_COMMAND_PALETTE",
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PHASE 1 — FILE TYPE RESTRICTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ALLOWED_EXTENSIONS = ["js", "jsx", "txt", "json", "md"];
+export const RUNNABLE_EXTENSIONS = ["js", "jsx"];
+
+export function isAllowedExtension(name) {
+  return ALLOWED_EXTENSIONS.includes(getFileExtension(name));
+}
+
+export function isRunnableExtension(name) {
+  return RUNNABLE_EXTENSIONS.includes(getFileExtension(name));
+}
 
 export function clone(obj) {
   if (typeof structuredClone === "function") return structuredClone(obj);
@@ -187,8 +215,8 @@ function mergeWorkspace(defaults = {}, source = {}) {
       recentFiles: clone(source.search?.recentFiles || defaults.search?.recentFiles || []),
       searchIndex: clone(source.search?.searchIndex || defaults.search?.searchIndex || []),
       // Search overlay state
-      isOpen:             source.search?.isOpen             ?? defaults.search?.isOpen             ?? false,
-      mode:               source.search?.mode               ?? defaults.search?.mode               ?? "file",
+      isOpen: source.search?.isOpen ?? defaults.search?.isOpen ?? false,
+      mode: source.search?.mode ?? defaults.search?.mode ?? "file",
       // Command palette state
       commandPaletteOpen: source.search?.commandPaletteOpen ?? defaults.search?.commandPaletteOpen ?? false,
     },
@@ -306,8 +334,8 @@ function normalizeWorkspace(appConfig) {
       recentFiles: clone(next.search?.recentFiles || []),
       searchIndex: clone(next.search?.searchIndex || []),
       // Search overlay state (not persisted, but normalised so always present)
-      isOpen:             next.search?.isOpen             ?? false,
-      mode:               next.search?.mode               ?? "file",
+      isOpen: next.search?.isOpen ?? false,
+      mode: next.search?.mode ?? "file",
       // Command palette state
       commandPaletteOpen: next.search?.commandPaletteOpen ?? false,
     },
@@ -1006,29 +1034,85 @@ export function redo(appConfig) {
   return restored;
 }
 
-export function runJavaScript(sourceCode) {
-  try {
-    const output = [];
-    const consoleProxy = {
-      log: (...args) => output.push(args.map(formatConsoleValue).join(" ")),
-      warn: (...args) => output.push(args.map(formatConsoleValue).join(" ")),
-      error: (...args) => output.push(args.map(formatConsoleValue).join(" ")),
-    };
+// ─────────────────────────────────────────────────────────────────────────────
+//  BUNDLER & SANDBOX — imported from src/bundler/* and re-exported here so
+//  that App.jsx, Header.jsx, and other consumers continue to import from a
+//  single entry point ("../functions") without any changes.
+// ─────────────────────────────────────────────────────────────────────────────
+export {
+  runJavaScript,
+  findEntryFile,
+  detectImports,
+  resolveImportPath,
+  buildDependencyGraph,
+  stripImports,
+  stripExports,
+  bundleProject,
+};
 
-    const fn = new Function("console", sourceCode);
-    fn(consoleProxy);
+export function runProject(appConfig) {
+  const next = normalizeWorkspace(appConfig);
+  const start = performance.now();
 
-    return {
-      success: true,
-      output,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      output: [],
-      error: error instanceof Error ? error.message : String(error),
-    };
+  const entryNode = findEntryFile(next);
+  if (!entryNode) {
+    appendConsoleLogs(next, [
+      buildConsoleLog("error", "❌ No entry point found. Create a file named index.js to run your project."),
+    ]);
+    appendExecution(next, buildExecutionEntry({
+      fileId: null,
+      status: "Failed",
+      mode: "run",
+      duration: "0ms",
+      error: "No index.js found",
+      summary: "No entry point (index.js) found in workspace",
+    }));
+    return next;
   }
+
+  let bundleResult;
+  try {
+    bundleResult = bundleProject(next, entryNode);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    appendConsoleLogs(next, [buildConsoleLog("error", `❌ Bundler error: ${msg}`)]);
+    appendExecution(next, buildExecutionEntry({
+      fileId: entryNode.id,
+      status: "Failed",
+      mode: "run",
+      duration: "0ms",
+      error: msg,
+      summary: `Bundler error: ${msg}`,
+    }));
+    return next;
+  }
+
+  if (bundleResult.diagnostics.length > 0) {
+    for (const diag of bundleResult.diagnostics) {
+      appendConsoleLogs(next, [buildConsoleLog("warn", diag)]);
+    }
+  }
+
+  const result = runJavaScript(bundleResult.code);
+  const duration = `${Math.max(1, Math.round(performance.now() - start))}ms`;
+
+  const logs = result.success
+    ? result.output.length
+      ? result.output.map((message) => buildConsoleLog("info", message))
+      : [buildConsoleLog("info", `index.js ran successfully with no console output.`)]
+    : [buildConsoleLog("error", result.error || "Runtime error")];
+
+  appendConsoleLogs(next, logs);
+  appendExecution(next, buildExecutionEntry({
+    fileId: entryNode.id,
+    status: result.success ? "Passed" : "Failed",
+    mode: "run",
+    duration,
+    summary: result.success ? `Ran project (index.js)` : result.error || "Runtime error",
+    error: result.success ? null : result.error || "Runtime error",
+  }));
+  touchMetadata(next, entryNode.id, { lastExecutedAt: Date.now() });
+  return next;
 }
 
 function createTestExecutor(sourceCode) {
@@ -1272,6 +1356,9 @@ export function addFile(appConfig, parentId, name) {
   const normalizedName = normalizeText(name);
   if (!normalizedName) return appConfig;
 
+  // Phase 1: validate allowed extensions
+  if (!isAllowedExtension(normalizedName)) return appConfig;
+
   const parent = appConfig?.fileTree?.[parentId];
   if (!parent || parent.type !== "folder") return appConfig;
   if (!canWriteNode(appConfig, parentId)) return appConfig;
@@ -1287,7 +1374,7 @@ export function addFile(appConfig, parentId, name) {
   };
   next.fileTree[id] = node;
   next.metadata[metadataId] = createMetadata({ id: metadataId, extension: getFileExtension(normalizedName) });
-  next.permissions[permissionId] = createPermissions({ id: permissionId, execute: true });
+  next.permissions[permissionId] = createPermissions({ id: permissionId, execute: isRunnableExtension(normalizedName) });
   next.fileContents[node.contentId] = {
     id: node.contentId,
     fileId: id,
@@ -1335,6 +1422,14 @@ export function renameNode(appConfig, nodeId, newName) {
         ...next.fileContents[renamed.contentId],
         language: getLanguageForName(normalizedName),
         updatedAt: now,
+      };
+    }
+    // Phase 1 (rename bug fix): sync execute permission with the new extension.
+    // Without this, renaming "math.js" -> "math.txt" would leave execute=true.
+    if (renamed.permissionId && next.permissions[renamed.permissionId]) {
+      next.permissions[renamed.permissionId] = {
+        ...next.permissions[renamed.permissionId],
+        execute: isRunnableExtension(normalizedName),
       };
     }
   } else {
@@ -1593,6 +1688,8 @@ export function dispatchWorkspaceAction(appConfig, action) {
       return saveFile(appConfig, action.fileId || getActiveFileId(appConfig));
     case ACTIONS.RUN_ACTIVE_FILE:
       return runActiveFile(appConfig, action.fileId || getActiveFileId(appConfig));
+    case ACTIONS.RUN_PROJECT:
+      return runProject(appConfig);
     case ACTIONS.RUN_TESTS:
       return runCurrentTests(appConfig, action.fileId || getActiveFileId(appConfig));
     case ACTIONS.UPDATE_FILE_CONTENT:
@@ -1645,7 +1742,13 @@ export function dispatchWorkspaceAction(appConfig, action) {
 }
 
 export default {
+  // Core
   ACTIONS,
+  ALLOWED_EXTENSIONS,
+  RUNNABLE_EXTENSIONS,
+  isAllowedExtension,
+  isRunnableExtension,
+  // Utils
   clone,
   generateId,
   hydrateWorkspace,
@@ -1697,12 +1800,23 @@ export default {
   pushUndoAction,
   undo,
   redo,
+  // Bundler & Sandbox
+  findEntryFile,
+  detectImports,
+  resolveImportPath,
+  buildDependencyGraph,
+  stripImports,
+  stripExports,
+  bundleProject,
+  runProject,
+  // Runners
   runJavaScript,
   runTests,
   runActiveFile,
   runCurrentTests,
   executeCode,
   compareOutput,
+  // File Ops
   addFolder,
   addFile,
   renameNode,
