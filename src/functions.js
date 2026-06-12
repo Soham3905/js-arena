@@ -34,6 +34,7 @@ export const ACTIONS = {
   ADD_TEST_CASE: "ADD_TEST_CASE",
   UPDATE_TEST_CASE: "UPDATE_TEST_CASE",
   DELETE_TEST_CASE: "DELETE_TEST_CASE",
+  CLEAR_CONSOLE: "CLEAR_CONSOLE",
   // Search overlay actions
   OPEN_QUICK_OPEN: "OPEN_QUICK_OPEN",
   OPEN_CONTENT_SEARCH: "OPEN_CONTENT_SEARCH",
@@ -1658,10 +1659,20 @@ export function changeLayout(appConfig, layoutId) {
   return next;
 }
 
+export function clearConsole(appConfig) {
+  const next = normalizeWorkspace(appConfig);
+  if (next.runtime?.console) {
+    next.runtime.console.logs = [];
+  }
+  return next;
+}
+
 export function dispatchWorkspaceAction(appConfig, action) {
   if (!action?.type) return appConfig;
 
   switch (action.type) {
+    case ACTIONS.CLEAR_CONSOLE:
+      return clearConsole(appConfig);
     case ACTIONS.ADD_FOLDER:
       return addFolder(appConfig, action.parentId, action.name);
     case ACTIONS.ADD_FILE:

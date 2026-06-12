@@ -68,8 +68,7 @@ export default function ConsolePanel({ workspace, dispatch }) {
               title="Clear output"
               className="text-[11px] text-[#888] hover:text-[#ccc] transition-colors"
               onClick={() => {
-                // Clear logs by dispatching a workspace update
-                // We'll just use the clear approach via a known pattern
+                dispatch({ type: ACTIONS.CLEAR_CONSOLE });
               }}
             >
               {/* Clear icon */}
