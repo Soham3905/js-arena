@@ -22,9 +22,12 @@ export const ACTIONS = {
   UPDATE_TEST_CASE: "UPDATE_TEST_CASE",
   DELETE_TEST_CASE: "DELETE_TEST_CASE",
   // Search overlay actions
-  OPEN_QUICK_OPEN:     "OPEN_QUICK_OPEN",
-  OPEN_CONTENT_SEARCH: "OPEN_CONTENT_SEARCH",
-  CLOSE_SEARCH:        "CLOSE_SEARCH",
+  OPEN_QUICK_OPEN:        "OPEN_QUICK_OPEN",
+  OPEN_CONTENT_SEARCH:    "OPEN_CONTENT_SEARCH",
+  CLOSE_SEARCH:           "CLOSE_SEARCH",
+  // Command palette actions
+  OPEN_COMMAND_PALETTE:   "OPEN_COMMAND_PALETTE",
+  CLOSE_COMMAND_PALETTE:  "CLOSE_COMMAND_PALETTE",
 };
 
 export function clone(obj) {
@@ -184,8 +187,10 @@ function mergeWorkspace(defaults = {}, source = {}) {
       recentFiles: clone(source.search?.recentFiles || defaults.search?.recentFiles || []),
       searchIndex: clone(source.search?.searchIndex || defaults.search?.searchIndex || []),
       // Search overlay state
-      isOpen: source.search?.isOpen ?? defaults.search?.isOpen ?? false,
-      mode:   source.search?.mode   ?? defaults.search?.mode   ?? "file",
+      isOpen:             source.search?.isOpen             ?? defaults.search?.isOpen             ?? false,
+      mode:               source.search?.mode               ?? defaults.search?.mode               ?? "file",
+      // Command palette state
+      commandPaletteOpen: source.search?.commandPaletteOpen ?? defaults.search?.commandPaletteOpen ?? false,
     },
     settings: {
       ...(defaults.settings || {}),
@@ -300,9 +305,11 @@ function normalizeWorkspace(appConfig) {
     search: {
       recentFiles: clone(next.search?.recentFiles || []),
       searchIndex: clone(next.search?.searchIndex || []),
-      // Search overlay state (not persisted, but normalised so it's always present)
-      isOpen: next.search?.isOpen ?? false,
-      mode:   next.search?.mode   ?? "file",
+      // Search overlay state (not persisted, but normalised so always present)
+      isOpen:             next.search?.isOpen             ?? false,
+      mode:               next.search?.mode               ?? "file",
+      // Command palette state
+      commandPaletteOpen: next.search?.commandPaletteOpen ?? false,
     },
     settings: clone(next.settings || {}),
     componentRegistry: clone(next.componentRegistry || {}),
@@ -1617,6 +1624,18 @@ export function dispatchWorkspaceAction(appConfig, action) {
     case ACTIONS.CLOSE_SEARCH: {
       const next = normalizeWorkspace(appConfig);
       next.search = { ...next.search, isOpen: false };
+      return next;
+    }
+
+    // ── Command palette ───────────────────────────────────────────────────────
+    case ACTIONS.OPEN_COMMAND_PALETTE: {
+      const next = normalizeWorkspace(appConfig);
+      next.search = { ...next.search, commandPaletteOpen: true };
+      return next;
+    }
+    case ACTIONS.CLOSE_COMMAND_PALETTE: {
+      const next = normalizeWorkspace(appConfig);
+      next.search = { ...next.search, commandPaletteOpen: false };
       return next;
     }
 

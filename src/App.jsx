@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { appConfig } from "./config";
+import CommandPalette from "./components/CommandPalette";
 import ConsolePanel from "./components/ConsolePanel";
 import Editor from "./components/Editor";
 import FileTree from "./components/FileTree";
@@ -340,6 +341,11 @@ export default function App() {
       case F.ACTIONS.CLOSE_SEARCH:
         applyWorkspaceAction(action);
         return;
+      // ── Command palette ──────────────────────────────────
+      case F.ACTIONS.OPEN_COMMAND_PALETTE:
+      case F.ACTIONS.CLOSE_COMMAND_PALETTE:
+        applyWorkspaceAction(action);
+        return;
       default:
         applyWorkspaceAction(action);
     }
@@ -417,23 +423,28 @@ export default function App() {
   };
 
   return (
-    <div
-      className="h-screen w-full overflow-hidden text-sm"
-      style={{
-        background: "#1e1e1e",
-        display: "grid",
-        gridTemplateColumns: `repeat(100, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(100, minmax(0, 1fr))`,
-        gap: "1px",
-      }}
-    >
-      {workspace.layout?.sections?.filter(s => s.visible).map(section => {
-        const style = {
-          gridColumn: `${section.position.colStart} / ${section.position.colEnd}`,
-          gridRow: `${section.position.rowStart} / ${section.position.rowEnd}`
-        };
-        return <SectionWrapper key={section.id} {...getSectionProps(section)} style={style} />;
-      })}
-    </div>
+    <>
+      {/* Command Palette — fixed overlay, rendered above the IDE grid */}
+      <CommandPalette workspace={workspace} dispatch={dispatch} />
+
+      <div
+        className="h-screen w-full overflow-hidden text-sm"
+        style={{
+          background: "#1e1e1e",
+          display: "grid",
+          gridTemplateColumns: `repeat(100, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(100, minmax(0, 1fr))`,
+          gap: "1px",
+        }}
+      >
+        {workspace.layout?.sections?.filter(s => s.visible).map(section => {
+          const style = {
+            gridColumn: `${section.position.colStart} / ${section.position.colEnd}`,
+            gridRow: `${section.position.rowStart} / ${section.position.rowEnd}`
+          };
+          return <SectionWrapper key={section.id} {...getSectionProps(section)} style={style} />;
+        })}
+      </div>
+    </>
   );
 }

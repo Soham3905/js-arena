@@ -110,12 +110,11 @@ export function createShortcutFunctions(getWorkspace, dispatch) {
     },
 
     /**
-     * Command Palette placeholder (Ctrl+Shift+P).
-     * Currently opens the content search as a fallback.
-     * Replace this with a real command palette in the future.
+     * Open Command Palette (Ctrl+Shift+P).
+     * Shows a searchable list of all available commands.
      */
     commandPalette() {
-      dispatch({ type: ACTIONS.OPEN_QUICK_OPEN });
+      dispatch({ type: ACTIONS.OPEN_COMMAND_PALETTE });
     },
 
     /**
