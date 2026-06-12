@@ -10,6 +10,7 @@ import Preview from "./components/Preview";
 import TestCasePanel from "./components/TestCasePanel";
 import * as F from "./functions";
 import { getWorkspacePart, setWorkspacePart } from "./db";
+import { initShortcuts, destroyShortcuts } from "./shortcuts/shortcutManager";
 
 const STORAGE_KEY = "sdui.appConfig.v4";
 const EDIT_HISTORY_IDLE_MS = 500;
@@ -99,6 +100,10 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
   const pendingEditRef = useRef(null);
   const saveTimeoutRef = useRef(null);
+  // Always-current workspace ref — used by shortcut handlers to avoid stale closures
+  const workspaceRef = useRef(null);
+  // Stable ref to dispatch — avoids shortcutManager needing a re-init on every render
+  const dispatchRef = useRef(null);
 
   useEffect(() => {
     function handleResize() {
@@ -135,6 +140,20 @@ export default function App() {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!workspace) return;
+    // Keep workspaceRef in sync so shortcut handlers read the latest state
+    workspaceRef.current = workspace;
+  }, [workspace]);
+
+  // Initialise the keyboard shortcut system once the workspace is ready
+  useEffect(() => {
+    if (!workspace || !dispatchRef.current) return;
+    initShortcuts(() => workspaceRef.current, dispatchRef.current);
+    return () => destroyShortcuts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!workspace]); // re-init only when workspace transitions null→loaded
 
   useEffect(() => {
     if (!workspace) return;
@@ -315,10 +334,19 @@ export default function App() {
         clearPendingEdit();
         applyWorkspaceAction(action);
         return;
+      // ── Search overlay ───────────────────────────────────────────────
+      case F.ACTIONS.OPEN_QUICK_OPEN:
+      case F.ACTIONS.OPEN_CONTENT_SEARCH:
+      case F.ACTIONS.CLOSE_SEARCH:
+        applyWorkspaceAction(action);
+        return;
       default:
         applyWorkspaceAction(action);
     }
   }
+
+  // Keep dispatchRef in sync so shortcutManager always calls the latest dispatch
+  dispatchRef.current = dispatch;
 
   if (isMobile) {
     return (

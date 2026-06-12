@@ -1,0 +1,12 @@
+{
+  "saveFile":       "Ctrl+S",
+  "runFile":        "Ctrl+Enter",
+  "runTests":       "Ctrl+R",
+  "renameNode":     "F2",
+  "deleteNode":     "Delete",
+  "quickOpen":      "Ctrl+P",
+  "searchContent":  "Ctrl+Shift+F",
+  "commandPalette": "Ctrl+Shift+P",
+  "undo":           "Ctrl+Z",
+  "redo":           "Ctrl+Y"
+}

@@ -21,6 +21,10 @@ export const ACTIONS = {
   ADD_TEST_CASE: "ADD_TEST_CASE",
   UPDATE_TEST_CASE: "UPDATE_TEST_CASE",
   DELETE_TEST_CASE: "DELETE_TEST_CASE",
+  // Search overlay actions
+  OPEN_QUICK_OPEN:     "OPEN_QUICK_OPEN",
+  OPEN_CONTENT_SEARCH: "OPEN_CONTENT_SEARCH",
+  CLOSE_SEARCH:        "CLOSE_SEARCH",
 };
 
 export function clone(obj) {
@@ -179,6 +183,9 @@ function mergeWorkspace(defaults = {}, source = {}) {
       ...(source.search || {}),
       recentFiles: clone(source.search?.recentFiles || defaults.search?.recentFiles || []),
       searchIndex: clone(source.search?.searchIndex || defaults.search?.searchIndex || []),
+      // Search overlay state
+      isOpen: source.search?.isOpen ?? defaults.search?.isOpen ?? false,
+      mode:   source.search?.mode   ?? defaults.search?.mode   ?? "file",
     },
     settings: {
       ...(defaults.settings || {}),
@@ -293,6 +300,9 @@ function normalizeWorkspace(appConfig) {
     search: {
       recentFiles: clone(next.search?.recentFiles || []),
       searchIndex: clone(next.search?.searchIndex || []),
+      // Search overlay state (not persisted, but normalised so it's always present)
+      isOpen: next.search?.isOpen ?? false,
+      mode:   next.search?.mode   ?? "file",
     },
     settings: clone(next.settings || {}),
     componentRegistry: clone(next.componentRegistry || {}),
@@ -1592,6 +1602,24 @@ export function dispatchWorkspaceAction(appConfig, action) {
       return undo(appConfig);
     case ACTIONS.REDO:
       return redo(appConfig);
+
+    // ── Search overlay ────────────────────────────────────────────────────────
+    case ACTIONS.OPEN_QUICK_OPEN: {
+      const next = normalizeWorkspace(appConfig);
+      next.search = { ...next.search, isOpen: true, mode: "file" };
+      return next;
+    }
+    case ACTIONS.OPEN_CONTENT_SEARCH: {
+      const next = normalizeWorkspace(appConfig);
+      next.search = { ...next.search, isOpen: true, mode: "content" };
+      return next;
+    }
+    case ACTIONS.CLOSE_SEARCH: {
+      const next = normalizeWorkspace(appConfig);
+      next.search = { ...next.search, isOpen: false };
+      return next;
+    }
+
     default:
       return appConfig;
   }

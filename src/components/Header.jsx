@@ -1,6 +1,17 @@
-import React, { useState, useRef, useEffect } from "react";
-import { ACTIONS, canExecuteNode, canRedo, canUndo, canWriteNode, getActiveFile, getActiveTab, searchWorkspace } from "../functions";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  ACTIONS,
+  canExecuteNode,
+  canRedo,
+  canUndo,
+  canWriteNode,
+  getActiveFile,
+  getActiveTab,
+  searchFiles,
+  searchContent,
+} from "../functions";
 import { LAYOUT_PRESETS, DEFAULT_LAYOUT_ID } from "../layouts";
+import { getShortcutLabel } from "../shortcuts/shortcutManager";
 
 // ────────────────────────────────────────────────────────────
 // Layout SVG icons (small 28×20 diagrams representing each layout)
@@ -161,6 +172,300 @@ function LayoutPicker({ activePresetId, dispatch }) {
 }
 
 // ────────────────────────────────────────────────────────────
+// Search Overlay — VS Code style, mode-aware
+// ────────────────────────────────────────────────────────────
+function SearchOverlay({ workspace, dispatch }) {
+  const isOpen   = workspace?.search?.isOpen  ?? false;
+  const mode     = workspace?.search?.mode    ?? "file";
+
+  const [query, setQuery]               = useState("");
+  const [activeIndex, setActiveIndex]   = useState(0);
+  const inputRef                        = useRef(null);
+  const overlayRef                      = useRef(null);
+
+  // ── Compute results ──────────────────────────────────────
+  const results = (() => {
+    const q = query.trim();
+    if (!q) return [];
+    if (mode === "file") return searchFiles(workspace, q);
+    return searchContent(workspace, q);
+  })();
+
+  // ── Auto-focus input when overlay opens ─────────────────
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay so the browser doesn't swallow the keystroke that opened it
+      const id = setTimeout(() => inputRef.current?.focus(), 40);
+      return () => clearTimeout(id);
+    } else {
+      // Reset when closed
+      setQuery("");
+      setActiveIndex(0);
+    }
+  }, [isOpen]);
+
+  // Reset active index when results change
+  useEffect(() => { setActiveIndex(0); }, [results.length, mode]);
+
+  // ── Close on outside click ───────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (overlayRef.current && !overlayRef.current.contains(e.target)) {
+        dispatch({ type: ACTIONS.CLOSE_SEARCH });
+      }
+    };
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
+  }, [isOpen, dispatch]);
+
+  // ── Keyboard navigation inside the overlay ───────────────
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      dispatch({ type: ACTIONS.CLOSE_SEARCH });
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+      return;
+    }
+    if (e.key === "Enter" && results[activeIndex]) {
+      e.preventDefault();
+      openResult(results[activeIndex]);
+    }
+  }, [results, activeIndex]);
+
+  function openResult(item) {
+    dispatch({ type: ACTIONS.OPEN_FILE, fileId: item.fileId });
+    dispatch({ type: ACTIONS.CLOSE_SEARCH });
+  }
+
+  if (!isOpen) return null;
+
+  const modeLabel   = mode === "file" ? "Quick Open" : "Search";
+  const placeholder = mode === "file"
+    ? "Type a filename to open…"
+    : "Type to search inside files…";
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        paddingTop: "60px",
+        background: "rgba(0,0,0,0.45)",
+      }}
+    >
+      <div
+        ref={overlayRef}
+        role="dialog"
+        aria-label={modeLabel}
+        style={{
+          width: "100%",
+          maxWidth: 560,
+          background: "#252526",
+          border: "1px solid #4a4a4a",
+          borderRadius: 8,
+          boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* ── Mode toggle tabs ── */}
+        <div style={{
+          display: "flex",
+          borderBottom: "1px solid #3c3c3c",
+          background: "#1e1e1e",
+        }}>
+          {[
+            { id: "file",    label: "Files",   shortcut: getShortcutLabel("quickOpen") },
+            { id: "content", label: "Content", shortcut: getShortcutLabel("searchContent") },
+          ].map((tab) => {
+            const active = mode === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`search-mode-${tab.id}`}
+                onClick={() => dispatch({ type: tab.id === "file" ? ACTIONS.OPEN_QUICK_OPEN : ACTIONS.OPEN_CONTENT_SEARCH })}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  fontSize: 12,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? "#fff" : "#888",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: active ? "2px solid #007acc" : "2px solid transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  transition: "color 0.12s, border-color 0.12s",
+                }}
+              >
+                {tab.label}
+                <span style={{
+                  fontSize: 10,
+                  color: active ? "#569cd6" : "#555",
+                  background: "#2d2d2d",
+                  border: "1px solid #3c3c3c",
+                  borderRadius: 3,
+                  padding: "1px 5px",
+                  fontFamily: "monospace",
+                  letterSpacing: "0.03em",
+                }}>
+                  {tab.shortcut}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Search input ── */}
+        <div style={{ position: "relative", padding: "10px 12px" }}>
+          {/* Search icon */}
+          <svg
+            style={{ position: "absolute", left: 24, top: "50%", transform: "translateY(-50%)", color: "#888", pointerEvents: "none" }}
+            width="13" height="13" viewBox="0 0 16 16" fill="currentColor"
+          >
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.85-3.85-.017.017zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+          </svg>
+          <input
+            ref={inputRef}
+            id="search-overlay-input"
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            style={{
+              width: "100%",
+              paddingLeft: 34,
+              paddingRight: 12,
+              paddingTop: 8,
+              paddingBottom: 8,
+              fontSize: 13,
+              background: "#3c3c3c",
+              border: "1px solid #007acc",
+              borderRadius: 4,
+              color: "#cccccc",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+
+        {/* ── Results list ── */}
+        {query.trim() && (
+          <div
+            role="listbox"
+            aria-label="Search results"
+            style={{ maxHeight: 320, overflowY: "auto", borderTop: "1px solid #2d2d2d" }}
+          >
+            {results.length === 0 ? (
+              <div style={{
+                padding: "16px 20px",
+                color: "#666",
+                fontSize: 12,
+                fontStyle: "italic",
+                textAlign: "center",
+              }}>
+                {mode === "file"
+                  ? `No files matching "${query}"`
+                  : `No content matches for "${query}"`}
+              </div>
+            ) : (
+              results.map((item, index) => {
+                const isActive = index === activeIndex;
+                return (
+                  <button
+                    key={`${item.id}_${index}`}
+                    role="option"
+                    aria-selected={isActive}
+                    onClick={() => openResult(item)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 16px",
+                      background: isActive ? "#094771" : "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      transition: "background 0.08s",
+                    }}
+                    onMouseEnter={() => setActiveIndex(index)}
+                  >
+                    {/* File path */}
+                    <span style={{ fontSize: 12, color: isActive ? "#fff" : "#cccccc", fontWeight: 500 }}>
+                      {mode === "content"
+                        ? <><span style={{ color: isActive ? "#9cdcfe" : "#888", marginRight: 4 }}>{item.name}:{item.lineNumber}</span></>
+                        : item.path}
+                    </span>
+                    {/* Preview / subtitle */}
+                    <span style={{ fontSize: 11, color: isActive ? "#aaa" : "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {mode === "content" ? item.lineText : item.path}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+            {/* Result count footer */}
+            {results.length > 0 && (
+              <div style={{
+                padding: "6px 16px",
+                fontSize: 10,
+                color: "#555",
+                borderTop: "1px solid #2d2d2d",
+                background: "#1e1e1e",
+              }}>
+                {results.length} result{results.length !== 1 ? "s" : ""}
+                {mode === "content" && " · Use ↑↓ to navigate, Enter to open"}
+                {mode === "file"    && " · Enter to open, Esc to close"}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty-state hint when no query yet */}
+        {!query.trim() && (
+          <div style={{
+            padding: "12px 16px 16px",
+            fontSize: 11,
+            color: "#555",
+            borderTop: "1px solid #2d2d2d",
+          }}>
+            {mode === "file"
+              ? "Start typing to search files by name or path"
+              : "Start typing to search inside file contents"}
+            <div style={{ marginTop: 6, display: "flex", gap: 12 }}>
+              <span style={{ color: "#444" }}>↑↓ navigate</span>
+              <span style={{ color: "#444" }}>↵ open</span>
+              <span style={{ color: "#444" }}>Esc close</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Header
 // ────────────────────────────────────────────────────────────
 export default function Header({ workspace, dispatch, title }) {
@@ -174,148 +479,112 @@ export default function Header({ workspace, dispatch, title }) {
   // Fall back to "default" if not yet set.
   const activePresetId = workspace?.layout?.activePresetId || DEFAULT_LAYOUT_ID;
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const searchResults = searchQuery.trim() ? searchWorkspace(workspace, searchQuery) : [];
-  const searchRef = useRef(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
-        setIsSearchFocused(false);
-      }
-    };
-    window.addEventListener("click", handleOutsideClick);
-    return () => window.removeEventListener("click", handleOutsideClick);
-  }, []);
+  // Shortcut labels for tooltips — read dynamically from shortcuts.json
+  const kbSave  = getShortcutLabel("saveFile");
+  const kbRun   = getShortcutLabel("runFile");
+  const kbTests = getShortcutLabel("runTests");
+  const kbSearch = getShortcutLabel("quickOpen");
 
   return (
-    <div className="flex h-full items-center justify-between gap-4 bg-[#3c3c3c] px-4 py-1 text-sm border-b border-[#252526]">
-      {/* Left: Logo + workspace name + active file */}
-      <div className="flex items-center gap-3 min-w-[180px]">
-        {/* VS Code-style icon */}
-        <div className="flex items-center gap-2">
-          <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
-            <path d="M74.9 5.1L37.3 40.2 15.6 23.4 5 29.3v41.4l10.6 5.9L37.3 59.8l37.6 35.1L95 88.3V11.7L74.9 5.1z" fill="#007ACC"/>
-          </svg>
-          <span className="font-semibold text-[13px] text-white tracking-wide">
-            {title || workspace.workspace?.name || "SDUI IDE"}
-          </span>
+    <>
+      {/* VS Code-style search overlay — rendered as a portal-like fixed overlay */}
+      <SearchOverlay workspace={workspace} dispatch={dispatch} />
+
+      <div className="flex h-full items-center justify-between gap-4 bg-[#3c3c3c] px-4 py-1 text-sm border-b border-[#252526]">
+        {/* Left: Logo + workspace name + active file */}
+        <div className="flex items-center gap-3 min-w-[180px]">
+          {/* VS Code-style icon */}
+          <div className="flex items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 100 100" fill="none">
+              <path d="M74.9 5.1L37.3 40.2 15.6 23.4 5 29.3v41.4l10.6 5.9L37.3 59.8l37.6 35.1L95 88.3V11.7L74.9 5.1z" fill="#007ACC"/>
+            </svg>
+            <span className="font-semibold text-[13px] text-white tracking-wide">
+              {title || workspace.workspace?.name || "SDUI IDE"}
+            </span>
+          </div>
+
+          {activeLabel && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#252526] border border-[#4a4a4a] rounded text-[11px] text-[#cccccc] truncate max-w-[160px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#007acc] flex-none" />
+              {activeLabel}
+            </div>
+          )}
         </div>
 
-        {activeLabel && (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#252526] border border-[#4a4a4a] rounded text-[11px] text-[#cccccc] truncate max-w-[160px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#007acc] flex-none" />
-            {activeLabel}
-          </div>
-        )}
-      </div>
-
-      {/* Center: Search */}
-      <div className="flex-1 max-w-[380px] relative" ref={searchRef}>
-        <div className="relative">
-          <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none"
-            width="12"
-            height="12"
-            viewBox="0 0 16 16"
-            fill="currentColor"
+        {/* Center: Quick Open trigger (replaces always-on search input) */}
+        <div className="flex-1 max-w-[380px]">
+          <button
+            id="header-search-trigger"
+            title={`Quick Open (${kbSearch})`}
+            aria-label="Quick Open — search files"
+            onClick={() => dispatch({ type: ACTIONS.OPEN_QUICK_OPEN })}
+            className="w-full flex items-center gap-2 pl-3 pr-2 py-1.5 text-[12px] bg-[#3a3a3a] border border-[#555] rounded text-[#888] hover:bg-[#444] hover:border-[#666] hover:text-[#aaa] transition-colors"
           >
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.85-3.85-.017.017zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
-          </svg>
-          <input
-            type="text"
-            id="header-search"
-            placeholder="Search files and content…"
-            className="w-full pl-8 pr-3 py-1.5 text-[12px] bg-[#252526] border border-[#4a4a4a] rounded text-[#cccccc] placeholder-[#666] focus:outline-none focus:ring-1 focus:ring-[#007acc] focus:border-[#007acc] transition-shadow"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-          />
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="flex-none">
+              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.415l-3.85-3.85-.017.017zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+            </svg>
+            <span className="flex-1 text-left">Search files…</span>
+            <kbd className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-[#252526] border border-[#4a4a4a] text-[#666] font-mono">
+              {kbSearch}
+            </kbd>
+          </button>
         </div>
-        {isSearchFocused && searchQuery.trim() !== "" && (
-          <div className="absolute top-full left-0 w-full mt-1 bg-[#252526] border border-[#4a4a4a] rounded shadow-2xl max-h-[300px] overflow-auto z-50">
-            {searchResults.length === 0 ? (
-              <div className="px-4 py-3 text-[#888] text-[12px] italic">No results for "{searchQuery}"</div>
-            ) : (
-              <ul className="flex flex-col divide-y divide-[#3c3c3c]">
-                {searchResults.map((item, index) => (
-                  <li key={`${item.id}_${index}`}>
-                    <button
-                      className="w-full text-left px-3 py-2 hover:bg-[#094771] transition-colors group"
-                      onClick={() => {
-                        dispatch({ type: ACTIONS.OPEN_FILE, fileId: item.fileId });
-                        setIsSearchFocused(false);
-                        setSearchQuery("");
-                      }}
-                    >
-                      <div className="font-medium text-[#cccccc] text-[12px] truncate">{item.path}</div>
-                      <div className="text-[#888] text-[11px] truncate mt-0.5 group-hover:text-[#aaa]">
-                        {item.matchType === "content" ? `Line ${item.lineNumber}: ${item.lineText}` : "File match"}
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+
+        {/* Right: Layout picker + Actions */}
+        <div className="flex items-center gap-1.5 min-w-[200px] justify-end">
+          {/* Layout Picker */}
+          <LayoutPicker activePresetId={activePresetId} dispatch={dispatch} />
+
+          <div className="w-px h-4 bg-white/15 mx-1" />
+
+          <button
+            id="header-undo"
+            className="w-7 h-7 flex items-center justify-center text-[#cccccc] hover:bg-white/10 rounded disabled:opacity-30 transition-colors text-[16px]"
+            disabled={!canUndo(workspace)}
+            title="Undo (Ctrl+Z)"
+            onClick={() => dispatch({ type: ACTIONS.UNDO })}
+          >
+            ↶
+          </button>
+          <button
+            id="header-redo"
+            className="w-7 h-7 flex items-center justify-center text-[#cccccc] hover:bg-white/10 rounded disabled:opacity-30 transition-colors text-[16px]"
+            disabled={!canRedo(workspace)}
+            title="Redo (Ctrl+Y)"
+            onClick={() => dispatch({ type: ACTIONS.REDO })}
+          >
+            ↷
+          </button>
+
+          <div className="w-px h-4 bg-white/15 mx-1" />
+
+          <button
+            id="header-save"
+            className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors disabled:opacity-40 bg-[#252526] text-[#cccccc] hover:bg-[#3a3a3a] border border-[#4a4a4a] disabled:cursor-not-allowed"
+            disabled={!canSave}
+            onClick={() => dispatch({ type: ACTIONS.SAVE_FILE, fileId: activeFile?.id })}
+            title={`Save (${kbSave})`}
+          >
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 1h9l3 3v11H2V1zm7 0v4h4M5 9h6m-6 3h6"/>
+            </svg>
+            Save
+          </button>
+
+          <button
+            id="header-run"
+            className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors disabled:opacity-40 bg-[#0e7a0d] text-white hover:bg-[#1a9e19] border border-[#0e7a0d] disabled:cursor-not-allowed shadow-sm"
+            disabled={!canRun}
+            onClick={() => dispatch({ type: ACTIONS.RUN_ACTIVE_FILE, fileId: activeFile?.id })}
+            title={`Run file (${kbRun})`}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+              <polygon points="2,1 9,5 2,9"/>
+            </svg>
+            Run
+          </button>
+        </div>
       </div>
-
-      {/* Right: Layout picker + Actions */}
-      <div className="flex items-center gap-1.5 min-w-[200px] justify-end">
-        {/* Layout Picker */}
-        <LayoutPicker activePresetId={activePresetId} dispatch={dispatch} />
-
-        <div className="w-px h-4 bg-white/15 mx-1" />
-
-        <button
-          id="header-undo"
-          className="w-7 h-7 flex items-center justify-center text-[#cccccc] hover:bg-white/10 rounded disabled:opacity-30 transition-colors text-[16px]"
-          disabled={!canUndo(workspace)}
-          title="Undo (Ctrl+Z)"
-          onClick={() => dispatch({ type: ACTIONS.UNDO })}
-        >
-          ↶
-        </button>
-        <button
-          id="header-redo"
-          className="w-7 h-7 flex items-center justify-center text-[#cccccc] hover:bg-white/10 rounded disabled:opacity-30 transition-colors text-[16px]"
-          disabled={!canRedo(workspace)}
-          title="Redo (Ctrl+Y)"
-          onClick={() => dispatch({ type: ACTIONS.REDO })}
-        >
-          ↷
-        </button>
-
-        <div className="w-px h-4 bg-white/15 mx-1" />
-
-        <button
-          id="header-save"
-          className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors disabled:opacity-40 bg-[#252526] text-[#cccccc] hover:bg-[#3a3a3a] border border-[#4a4a4a] disabled:cursor-not-allowed"
-          disabled={!canSave}
-          onClick={() => dispatch({ type: ACTIONS.SAVE_FILE, fileId: activeFile?.id })}
-          title="Save (Ctrl+S)"
-        >
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M2 1h9l3 3v11H2V1zm7 0v4h4M5 9h6m-6 3h6"/>
-          </svg>
-          Save
-        </button>
-
-        <button
-          id="header-run"
-          className="flex items-center gap-1.5 h-7 px-3 text-[12px] font-medium rounded transition-colors disabled:opacity-40 bg-[#0e7a0d] text-white hover:bg-[#1a9e19] border border-[#0e7a0d] disabled:cursor-not-allowed shadow-sm"
-          disabled={!canRun}
-          onClick={() => dispatch({ type: ACTIONS.RUN_ACTIVE_FILE, fileId: activeFile?.id })}
-          title="Run file"
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-            <polygon points="2,1 9,5 2,9"/>
-          </svg>
-          Run
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
